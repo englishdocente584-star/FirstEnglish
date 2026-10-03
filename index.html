@@ -106,7 +106,7 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <!-- Nuevo botón de ajustes (oculto por defecto) -->
+                        <!-- Botón de ajustes para estudiantes -->
                         <button id="btn-student-settings" onclick="modalStudentSettings()" class="hidden w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors shadow-sm"><i class="fa-solid fa-gear text-white text-xl"></i></button>
                         
                         <button onclick="location.reload()" class="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors shadow-sm"><i class="fa-solid fa-power-off text-brand-yellow text-xl"></i></button>
@@ -232,7 +232,7 @@
             } else {
                 document.getElementById('display-role').innerText = globalData.cursos?.[currentUser.cursoId]?.nombre || "Student";
                 document.getElementById('nav-student').classList.remove('hidden');
-                document.getElementById('btn-student-settings').classList.remove('hidden'); // Muestra el engranaje
+                document.getElementById('btn-student-settings').classList.remove('hidden');
                 renderStudentDashboard();
             }
         }
@@ -939,7 +939,6 @@
             const ent = globalData.entregas[pubId][estId];
             const maxPts = pub.maxPts || 100;
             
-            // Si el docente ya guardó una corrección, cargarla. Si no, cargar la respuesta original del alumno.
             const correccionPrevia = ent.correccion || ent.respuesta || '';
 
             let html = `
@@ -1253,12 +1252,13 @@
             main.innerHTML = html + `</div></div>`;
         }
 
+        // --- CARGA MASIVA INTELIGENTE MEJORADA ---
         function modalCargaMasiva() {
             let ops = '<option value="">-- SELECCIONA UN GRUPO --</option>';
             for(let key in globalData.cursos) ops += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
             openModal(`
                 <div class="p-6 md:p-8 h-full flex flex-col">
-                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic flex-shrink-0">Carga Masiva <i class="fa-solid fa-file-excel text-green-600 ml-2"></i></h3>
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic flex-shrink-0">Carga Masiva Inteligente <i class="fa-solid fa-file-excel text-green-600 ml-2"></i></h3>
                     <div class="space-y-4 flex-1 flex flex-col min-h-0">
                         <div class="flex-shrink-0">
                             <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-1">1. Selecciona el Grupo Destino:</label>
@@ -1266,11 +1266,11 @@
                         </div>
                         
                         <div class="flex-1 flex flex-col min-h-[30vh]">
-                            <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-1 mt-2">2. Pega los datos desde Excel:</label>
+                            <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-1 mt-2">2. Pega los datos de tus alumnos:</label>
                             <div class="bg-blue-50 p-3 rounded-xl mb-2 border border-blue-100">
-                                <p class="text-[10px] md:text-xs text-blue-800 font-bold leading-tight"><i class="fa-solid fa-circle-info mr-1"></i> Selecciona y copia 2 columnas de tu Excel (Nombre Completo y Código) y pégalas abajo. Una fila por alumno.</p>
+                                <p class="text-[10px] md:text-xs text-blue-800 font-bold leading-tight"><i class="fa-solid fa-circle-info mr-1"></i> Formato requerido: <b>NOMBRE COMPLETO - CÓDIGO</b> (Separados por un guion -). Una fila por alumno.</p>
                             </div>
-                            <textarea id="masivo-datos" placeholder="EJEMPLO:\nJUAN PEREZ GOMEZ     JP123\nMARIA MAMANI CHUQUIMIA     MM456" class="w-full flex-1 p-4 bg-slate-50 rounded-2xl font-bold outline-none focus:bg-white focus:border-brand-teal transition-colors border border-slate-200 text-sm whitespace-pre shadow-inner resize-none"></textarea>
+                            <textarea id="masivo-datos" placeholder="EJEMPLOS:\nJUAN CARLOS PEREZ GOMEZ - JP12345\nMARIA MAMANI CHUQUIMIA - MM456789\nLIZETH ROXANA SILVA VARGAS - 789012" class="w-full flex-1 p-4 bg-slate-50 rounded-2xl font-bold outline-none focus:bg-white focus:border-brand-teal transition-colors border border-slate-200 text-sm whitespace-pre shadow-inner resize-none"></textarea>
                         </div>
                         
                         <button id="btn-procesar-masivo" onclick="procesarCargaMasiva()" class="w-full flex-shrink-0 bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 md:py-5 rounded-2xl font-black shadow-xl mt-2 uppercase text-sm tracking-widest"><i class="fa-solid fa-upload mr-2"></i> Procesar y Registrar</button>
@@ -1298,44 +1298,41 @@
                 const line = lines[i].trim();
                 if (!line) continue;
                 
-                // Intentar separar por tabulación (por defecto al pegar desde Excel)
-                let parts = line.split('\t');
-                
-                // Si no hay tabulación, intentar por comas (CSV)
-                if (parts.length < 2) {
-                    parts = line.split(',');
-                }
-                
-                // Si sigue sin haber 2 partes, intentar separar por 2 o más espacios consecutivos
-                if (parts.length < 2) {
-                    parts = line.split(/\s{2,}/);
+                let nombre = '';
+                let codigo = '';
+
+                // 1. Separar por el último guion (-) para permitir nombres o identificadores con cualquier formato
+                const lastHyphenIndex = line.lastIndexOf('-');
+                if (lastHyphenIndex !== -1) {
+                    nombre = line.substring(0, lastHyphenIndex).trim().toUpperCase();
+                    codigo = line.substring(lastHyphenIndex + 1).trim().toUpperCase();
+                } else {
+                    // Fallback de respaldo si pegan desde Excel directo (tabulación, coma o espacios dobles)
+                    let parts = line.split('\t');
+                    if (parts.length < 2) parts = line.split(',');
+                    if (parts.length < 2) parts = line.split(/\s{2,}/);
+
+                    if (parts.length >= 2) {
+                        codigo = parts[parts.length - 1].trim().toUpperCase();
+                        parts.pop();
+                        nombre = parts.join(' ').trim().toUpperCase();
+                    }
                 }
 
-                if (parts.length >= 2) {
-                    // El último elemento es el código
-                    const codigo = parts[parts.length - 1].trim().toUpperCase();
-                    
-                    // Todo lo anterior es el nombre (los unimos por si el nombre tenía tabulaciones extrañas o comas)
-                    parts.pop(); 
-                    const nombre = parts.join(' ').trim().toUpperCase();
-
-                    if (nombre && codigo) {
-                        try {
-                            await db.ref('estudiantes').push({ 
-                                nombre: nombre, 
-                                codigo: codigo, 
-                                cursoId: cur, 
-                                notas: {} 
-                            });
-                            successCount++;
-                        } catch (e) {
-                            errors++;
-                        }
-                    } else {
-                        errors++; // Fila con datos incompletos
+                if (nombre && codigo) {
+                    try {
+                        await db.ref('estudiantes').push({ 
+                            nombre: nombre, 
+                            codigo: codigo, 
+                            cursoId: cur, 
+                            notas: {} 
+                        });
+                        successCount++;
+                    } catch (e) {
+                        errors++;
                     }
                 } else {
-                    errors++; // No se pudo separar la fila en Nombre y Código
+                    errors++;
                 }
             }
 
@@ -1423,11 +1420,9 @@
             const newPin = document.getElementById('new-student-pin').value.trim().toUpperCase();
             if(!newPin) return alert("El PIN no puede estar vacío.");
             
-            // Verifica que el estudiante no trate de ponerse el PIN del Administrador
             const adminCode = globalData.configuracion?.adminCode || "PROFE2026";
             if(newPin === adminCode) return alert("Este PIN no está permitido.");
             
-            // Verifica que el PIN no pertenezca ya a otro estudiante registrado
             for(let key in globalData.estudiantes) {
                 if(key !== currentUser.id && globalData.estudiantes[key].codigo === newPin) {
                     return alert("Este PIN ya está en uso por otra persona. Intenta agregarle un número extra.");
@@ -1435,9 +1430,8 @@
             }
 
             try {
-                // Guarda el nuevo código en Firebase en la ruta exacta de este alumno
                 await db.ref(`estudiantes/${currentUser.id}/codigo`).set(newPin);
-                currentUser.codigo = newPin; // Actualiza la memoria temporal de la app
+                currentUser.codigo = newPin;
                 alert("¡Tu PIN ha sido actualizado exitosamente!");
                 closeModal();
             } catch (error) {
@@ -1452,17 +1446,14 @@
             content.innerHTML = html; 
             
             if(isFullScreen) {
-                // Configuración para que simule una hoja completa de Word en Laptops y Celulares
                 box.className = 'bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-[98vw] md:max-w-6xl h-[95vh] md:h-[95vh] rounded-2xl md:rounded-[2rem] overflow-hidden';
                 content.className = 'flex-1 flex flex-col h-full w-full';
             } else {
-                // Modal estándar
                 box.className = 'bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-full max-w-sm md:max-w-xl rounded-[2rem] h-auto';
                 content.className = 'overflow-y-auto hide-scroll w-full max-h-[85vh]';
             }
             
             document.getElementById('modal-overlay').classList.remove('hidden'); 
-            // Añade un estado al historial para interceptar el botón Atrás
             history.pushState({ modalOpen: true }, "");
         }
 
@@ -1470,7 +1461,6 @@
             const overlay = document.getElementById('modal-overlay');
             if (overlay && !overlay.classList.contains('hidden')) {
                 overlay.classList.add('hidden');
-                // Si cerramos usando el botón de la interfaz, también retrocedemos en el historial para evitar inconsistencias
                 if (history.state && history.state.modalOpen) {
                     history.back();
                 }
@@ -1480,7 +1470,6 @@
         async function eliminarRegistro(path) { if(confirm("¿Estás seguro de eliminar este registro?")) await db.ref(path).remove(); }
     </script>
 <script>
-    // Registrar el Service Worker para permitir la instalación
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('sw.js')
@@ -1494,16 +1483,13 @@
     }
 </script>
 <script>
-    // Lógica del botón de instalación
     let deferredPrompt;
     const installBanner = document.getElementById('install-banner');
     const installButton = document.getElementById('install-button');
 
     window.addEventListener('beforeinstallprompt', (e) => {
-        // Evita que el navegador muestre su propio aviso
         e.preventDefault();
         deferredPrompt = e;
-        // Muestra nuestro banner personalizado
         installBanner.style.display = 'block';
     });
 
