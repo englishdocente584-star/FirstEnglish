@@ -380,10 +380,7 @@
                         <div>
                             <div class="flex justify-between items-start mb-3 border-b pb-3">
                                 <span class="text-xs font-black uppercase text-brand-teal bg-brand-teal/10 px-2 py-1 rounded w-max">Pub: ${p.fechaPublicado || 'N/A'}</span>
-                                <div class="flex items-center gap-2">
-                                    <button onclick="modalEditarTarea('${k}')" title="Editar Tarea" class="text-slate-300 hover:text-brand-teal transition-colors text-lg"><i class="fa-solid fa-pen"></i></button>
-                                    <button onclick="eliminarRegistro('publicaciones/${k}')" title="Eliminar Publicación" class="text-slate-300 text-lg hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
-                                </div>
+                                <button onclick="eliminarRegistro('publicaciones/${k}')" class="text-slate-300 text-xl hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
                             </div>
                             <h4 class="font-black text-brand-navy uppercase mt-1 text-xl">${p.titulo}</h4>
                             <p class="text-sm text-slate-500 mt-2 line-clamp-3">${p.descripcion}</p>
@@ -1218,566 +1215,565 @@
             renderGradesTable(document.getElementById('g-cur').value);
         }
 
-        /* Novedad: Modales y funciones para Editar y Eliminar Tareas directamente desde la Libreta */
-        function modalEditarTarea(taskId) {
-            const p = globalData.publicaciones[taskId];
-            if(!p) return alert("Tarea no encontrada.");
-
-            let catOptions = `
-                <option value="tareas" ${p.categoria === 'tareas' ? 'selected' : ''}>TAREAS Y PRÁCTICAS</option>
-                <option value="asistencia" ${p.categoria === 'asistencia' ? 'selected' : ''}>ASISTENCIA</option>
-                <option value="participacion" ${p.categoria === 'participacion' ? 'selected' : ''}>PARTICIPACIÓN</option>
-                <option value="midtermEscrito" ${p.categoria === 'midtermEscrito' ? 'selected' : ''}>MIDTERM ESCRITO</option>
-                <option value="midtermOral" ${p.categoria === 'midtermOral' ? 'selected' : ''}>MIDTERM ORAL</option>
-                <option value="finalEscrito" ${p.categoria === 'finalEscrito' ? 'selected' : ''}>FINAL ESCRITO</option>
-                <option value="finalOral" ${p.categoria === 'finalOral' ? 'selected' : ''}>FINAL ORAL</option>
-            `;
-
-            openModal(`
-                <div class="p-6 md:p-8">
-                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-2 italic"><i class="fa-solid fa-pen-to-square text-brand-teal mr-2"></i> Editar Nombre / Parámetros de la Tarea</h3>
-                    <p class="text-xs font-bold text-slate-400 uppercase mb-4">Corrige posibles errores de tipeo o ajusta la categoría de esta actividad</p>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Nombre / Título de la Tarea:</label>
-                            <input id="ed-tit" type="text" value="${p.titulo || ''}" placeholder="TÍTULO DE LA TAREA" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors border-2 border-transparent text-sm">
-                        </div>
-                        <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Categoría de Calificación:</label>
-                            <select id="ed-cat" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal border border-slate-200">
-                                ${catOptions}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Puntaje Máximo:</label>
-                            <input id="ed-max" type="number" value="${p.maxPts || 100}" min="1" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm focus:border-brand-teal focus:bg-white transition-colors border border-slate-200">
-                        </div>
-                        <div class="flex gap-3 pt-2">
-                            <button onclick="saveEditarTarea('${taskId}')" class="flex-1 bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest">Guardar Cambios</button>
-                            <button onclick="eliminarTareaLibreta('${taskId}')" title="Quitar Tarea" class="bg-red-500 hover:bg-red-600 transition-colors text-white px-5 py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest"><i class="fa-solid fa-trash-can"></i></button>
-                        </div>
-                    </div>
-                </div>
-            `, false);
-        }
-
-        async function saveEditarTarea(taskId) {
-            const tit = document.getElementById('ed-tit').value.trim().toUpperCase();
-            const cat = document.getElementById('ed-cat').value;
-            const maxPts = Number(document.getElementById('ed-max').value) || 100;
-
-            if(!tit) return alert("El título no puede estar vacío.");
-
-            await db.ref(`publicaciones/${taskId}`).update({
-                titulo: tit,
-                categoria: cat,
-                maxPts: maxPts
-            });
-
-            alert("Tarea actualizada correctamente.");
-            closeModal();
-            const curSelect = document.getElementById('g-cur');
-            if(curSelect && curSelect.value) renderGradesTable(curSelect.value);
-            else if(currentUser && currentUser.rol === 'teacher') renderTeacherDashboard();
-        }
-
-        async function eliminarTareaLibreta(taskId) {
-            if (confirm("¿Estás seguro de quitar esta tarea? Se eliminarán todas las entregas y notas registradas para esta actividad.")) {
-                await db.ref(`publicaciones/${taskId}`).remove();
-                await db.ref(`entregas/${taskId}`).remove();
-                alert("Tarea eliminada correctamente.");
-                closeModal();
-                const curSelect = document.getElementById('g-cur');
-                if(curSelect && curSelect.value) renderGradesTable(curSelect.value);
-                else if(currentUser && currentUser.rol === 'teacher') renderTeacherDashboard();
-            }
-        }
-
-        function renderGradesTable(cursoId) {
+        function renderGradesTable(cId) {
             const container = document.getElementById('grades-table-container');
-            const headerActions = document.getElementById('gradebook-header-actions');
-            if(!container) return;
-
-            if(!cursoId) {
-                container.innerHTML = '<p class="text-center text-slate-400 font-bold py-10">Selecciona un grupo para ver la libreta de calificaciones.</p>';
-                if(headerActions) headerActions.classList.add('hidden');
-                return;
-            }
-            if(headerActions) headerActions.classList.remove('hidden');
-
-            const curso = globalData.cursos[cursoId];
-            if(!curso) {
-                container.innerHTML = '<p class="text-center text-slate-400 font-bold py-10">Curso no encontrado.</p>';
-                return;
-            }
-
-            const pond = getGroupPonderaciones(cursoId);
-
-            const alumnos = [];
-            for(let id in globalData.estudiantes) {
-                if(globalData.estudiantes[id].cursoId === cursoId) {
-                    alumnos.push({ ...globalData.estudiantes[id], id });
-                }
-            }
-
-            const tareas = [];
-            for(let k in globalData.publicaciones) {
-                const p = globalData.publicaciones[k];
-                if((p.cursoId === cursoId || p.cursoId === 'all') && p.categoria && p.categoria !== 'none') {
-                    tareas.push({ ...p, id: k });
-                }
-            }
-
-            if(alumnos.length === 0) {
-                container.innerHTML = `
-                    <div class="bg-white p-8 rounded-3xl text-center shadow-sm border border-slate-100">
-                        <p class="text-slate-500 font-black uppercase mb-2">No hay estudiantes registrados en este grupo.</p>
-                        <button onclick="renderTeacherStudents()" class="bg-brand-teal text-white font-black px-6 py-3 rounded-2xl text-xs uppercase shadow-md">Registrar Alumnos</button>
-                    </div>`;
-                return;
-            }
-
-            let html = `
-                <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 mb-6">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-4 mb-4">
-                        <div>
-                            <h4 class="font-black text-brand-navy uppercase text-lg italic"><i class="fa-solid fa-list-check text-brand-teal mr-2"></i> Actividades Evaluadas (${tareas.length})</h4>
-                            <p class="text-xs text-slate-400 font-bold uppercase">Presiona el lápiz <i class="fa-solid fa-pen text-brand-teal"></i> para editar el nombre de la tarea o el basurero <i class="fa-solid fa-trash text-red-500"></i> para quitarla.</p>
-                        </div>
-                        <button onclick="modalNuevaTareaManual('${cursoId}')" class="bg-brand-teal hover:bg-teal-400 transition-colors text-white font-black text-xs px-4 py-2.5 rounded-xl uppercase shadow-sm">
-                            + Añadir Tarea Manual
-                        </button>
-                    </div>
-                    <div class="flex flex-wrap gap-2">`;
+            const actionsHeader = document.getElementById('gradebook-header-actions');
             
-            if(tareas.length === 0) {
-                html += `<p class="text-xs text-slate-400 font-bold italic py-2">No hay actividades o tareas registradas en este grupo.</p>`;
-            } else {
-                tareas.forEach(t => {
-                    html += `
-                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center gap-3 hover:border-brand-teal transition-colors shadow-sm">
-                            <div>
-                                <p class="font-black text-brand-navy text-xs uppercase truncate max-w-[150px]">${t.titulo}</p>
-                                <span class="text-[10px] font-bold text-brand-teal bg-brand-teal/10 px-2 py-0.5 rounded uppercase">${t.categoria || 'Tarea'} (${t.maxPts || 100} pts)</span>
-                            </div>
-                            <div class="flex items-center gap-1 border-l pl-2 border-slate-200">
-                                <button onclick="modalEditarTarea('${t.id}')" title="Editar nombre / corrección de tipeo" class="w-7 h-7 bg-white hover:bg-brand-teal hover:text-white transition-colors text-brand-teal rounded-lg border border-slate-200 flex items-center justify-center text-xs shadow-sm">
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>
-                                <button onclick="eliminarTareaLibreta('${t.id}')" title="Quitar tarea de la libreta" class="w-7 h-7 bg-white hover:bg-red-500 hover:text-white transition-colors text-red-500 rounded-lg border border-slate-200 flex items-center justify-center text-xs shadow-sm">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>`;
+            if(!cId) {
+                if(container) container.innerHTML = '';
+                if(actionsHeader) actionsHeader.classList.add('hidden');
+                return;
+            }
+            
+            if(actionsHeader) actionsHeader.classList.remove('hidden');
+
+            const pond = getGroupPonderaciones(cId);
+
+            // 1. Obtener alumnos del curso
+            let students = [];
+            for(let eId in globalData.estudiantes) {
+                if(globalData.estudiantes[eId].cursoId === cId) {
+                    students.push({...globalData.estudiantes[eId], id: eId});
+                }
+            }
+            students.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+            if(students.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-400 font-bold text-sm py-10">No hay alumnos registrados en este grupo.</p>`;
+                return;
+            }
+
+            // 2. Agrupar Tareas y Actividades publicadas por Categoría para este grupo
+            const tasksByCat = {
+                asistencia: [],
+                participacion: [],
+                tareas: [],
+                midtermEscrito: [],
+                midtermOral: [],
+                finalEscrito: [],
+                finalOral: []
+            };
+
+            for(let pId in globalData.publicaciones) {
+                const p = globalData.publicaciones[pId];
+                if((p.cursoId === cId || p.cursoId === 'all') && p.categoria && tasksByCat[p.categoria]) {
+                    tasksByCat[p.categoria].push({ ...p, id: pId });
+                }
+            }
+
+            // Construcción de Cabeceras
+            let headers = `<th class="p-3 text-center bg-brand-navy text-white">N°</th><th class="p-3 text-left w-56 bg-brand-navy text-white">ALUMNO</th>`;
+
+            // Asistencia
+            headers += `<th class="p-3 text-center bg-slate-800 text-brand-teal" title="Asistencia (Max: ${pond.asistencia})">ASI<br>(${pond.asistencia}p)</th>`;
+            
+            // Participación
+            headers += `<th class="p-3 text-center bg-slate-800 text-brand-teal" title="Participación (Max: ${pond.participacion})">PAR<br>(${pond.participacion}p)</th>`;
+
+            // Tareas y Prácticas (Dinámicas)
+            if (tasksByCat.tareas.length > 0) {
+                tasksByCat.tareas.forEach(t => {
+                    headers += `<th class="p-2 text-center bg-teal-800 text-teal-100 text-[9px] max-w-[100px] truncate border-r border-teal-700" title="${t.titulo}">${t.titulo}<br>(${t.maxPts || 100}p)</th>`;
                 });
             }
-            html += `</div></div>`;
+            headers += `<th class="p-3 text-center bg-teal-900 text-brand-yellow" title="Tareas Ponderadas sobre ${pond.tareas} pts">POND. TAR<br>(${pond.tareas}p)</th>`;
 
-            html += `
-                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="overflow-x-auto hide-scroll">
-                        <table class="w-full text-left border-collapse gradebook-table">
-                            <thead>
-                                <tr class="bg-brand-navy text-white text-xs uppercase font-black">
-                                    <th class="p-4 border-r border-slate-700 min-w-[200px] sticky left-0 bg-brand-navy z-20">Estudiante</th>`;
-
-            tareas.forEach(t => {
-                html += `
-                    <th class="p-4 border-r border-slate-700 min-w-[160px] text-center bg-brand-navy">
-                        <div class="flex items-center justify-center gap-1 mb-1">
-                            <span class="truncate max-w-[110px]" title="${t.titulo}">${t.titulo}</span>
-                            <button onclick="modalEditarTarea('${t.id}')" title="Editar Tarea" class="text-brand-yellow hover:text-white transition-colors text-xs p-1"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="eliminarTareaLibreta('${t.id}')" title="Eliminar Tarea" class="text-red-400 hover:text-red-300 transition-colors text-xs p-1"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                        <div class="text-[10px] text-brand-teal font-normal block uppercase">${t.categoria || 'Tarea'} (${t.maxPts || 100} pts)</div>
-                    </th>`;
-            });
-
-            html += `
-                    <th class="p-4 text-center bg-brand-teal text-white min-w-[120px]">Nota Final (/100)</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 text-xs md:text-sm">`;
-
-            alumnos.forEach(est => {
-                let catEarned = { tareas: 0, asistencia: 0, participacion: 0, midtermEscrito: 0, midtermOral: 0, finalEscrito: 0, finalOral: 0 };
-                let catMax = { tareas: 0, asistencia: 0, participacion: 0, midtermEscrito: 0, midtermOral: 0, finalEscrito: 0, finalOral: 0 };
-
-                html += `<tr class="hover:bg-slate-50/80 transition-colors">
-                    <td class="p-4 font-black text-brand-navy border-r border-slate-100 sticky left-0 bg-white z-10 shadow-sm">
-                        <div class="uppercase truncate max-w-[180px]">${est.nombre}</div>
-                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">PIN: ${est.codigo || '--'}</div>
-                    </td>`;
-
-                tareas.forEach(t => {
-                    const ent = globalData.entregas?.[t.id]?.[est.id];
-                    const notaVal = (ent && ent.nota !== undefined && ent.nota !== "") ? ent.nota : "";
-                    const maxP = t.maxPts || 100;
-
-                    if (notaVal !== "") {
-                        const cat = t.categoria || 'tareas';
-                        if (catEarned[cat] !== undefined) {
-                            catEarned[cat] += Number(notaVal);
-                            catMax[cat] += maxP;
-                        }
-                    }
-
-                    html += `
-                        <td class="p-3 border-r border-slate-100 text-center">
-                            <input type="number" min="0" max="${maxP}" value="${notaVal}" 
-                                onchange="updateTaskGrade('${t.id}', '${est.id}', this.value)"
-                                placeholder="--"
-                                class="gradebook-input w-16 p-2 rounded-xl text-center font-black bg-slate-50 border border-slate-200 focus:bg-white focus:border-brand-teal outline-none transition-colors text-brand-navy">
-                        </td>`;
+            // Midterm Escrito
+            if (tasksByCat.midtermEscrito.length > 0) {
+                tasksByCat.midtermEscrito.forEach(t => {
+                    headers += `<th class="p-2 text-center bg-blue-900 text-blue-100 text-[9px] max-w-[100px] truncate" title="${t.titulo}">${t.titulo}<br>(${t.maxPts || 100}p)</th>`;
                 });
+            } else {
+                headers += `<th class="p-3 text-center bg-blue-900 text-blue-100">ME<br>(${pond.midtermEscrito}p)</th>`;
+            }
 
-                let finalScore = 0;
-                let categories = ['asistencia', 'participacion', 'tareas', 'midtermEscrito', 'midtermOral', 'finalEscrito', 'finalOral'];
-                categories.forEach(cat => {
-                    const weight = pond[cat] || 0;
-                    if (catMax[cat] > 0) {
-                        const ratio = catEarned[cat] / catMax[cat];
-                        finalScore += ratio * weight;
-                    } else if (globalData.estudiantes[est.id]?.notas?.[cat] !== undefined) {
-                        const directVal = Number(globalData.estudiantes[est.id].notas[cat]);
-                        finalScore += (directVal / 100) * weight;
-                    }
+            // Midterm Oral
+            if (tasksByCat.midtermOral.length > 0) {
+                tasksByCat.midtermOral.forEach(t => {
+                    headers += `<th class="p-2 text-center bg-blue-900 text-blue-100 text-[9px] max-w-[100px] truncate" title="${t.titulo}">${t.titulo}<br>(${t.maxPts || 100}p)</th>`;
                 });
+            } else {
+                headers += `<th class="p-3 text-center bg-blue-900 text-blue-100">MO<br>(${pond.midtermOral}p)</th>`;
+            }
 
-                const roundedFinal = Math.round(finalScore);
+            // Final Escrito
+            if (tasksByCat.finalEscrito.length > 0) {
+                tasksByCat.finalEscrito.forEach(t => {
+                    headers += `<th class="p-2 text-center bg-indigo-900 text-indigo-100 text-[9px] max-w-[100px] truncate" title="${t.titulo}">${t.titulo}<br>(${t.maxPts || 100}p)</th>`;
+                });
+            } else {
+                headers += `<th class="p-3 text-center bg-indigo-900 text-indigo-100">FE<br>(${pond.finalEscrito}p)</th>`;
+            }
 
-                html += `
-                    <td class="p-4 text-center font-black text-base ${roundedFinal >= 51 ? 'text-brand-teal' : 'text-red-500'} bg-slate-50/50">
-                        ${roundedFinal} / 100
-                    </td>
+            // Final Oral
+            if (tasksByCat.finalOral.length > 0) {
+                tasksByCat.finalOral.forEach(t => {
+                    headers += `<th class="p-2 text-center bg-indigo-900 text-indigo-100 text-[9px] max-w-[100px] truncate" title="${t.titulo}">${t.titulo}<br>(${t.maxPts || 100}p)</th>`;
+                });
+            } else {
+                headers += `<th class="p-3 text-center bg-indigo-900 text-indigo-100">FO<br>(${pond.finalOral}p)</th>`;
+            }
+
+            // Recuperatorio y Total
+            headers += `<th class="p-3 text-center bg-yellow-600 text-white">REC<br>(10p)</th>`;
+            headers += `<th class="p-3 text-center bg-brand-teal text-white">TOTAL</th>`;
+
+            // Generación de Filas por Estudiante
+            let tbody = '';
+            students.forEach((e, index) => {
+                const n = e.notas || {};
+                const eId = e.id;
+
+                const makeTaskInput = (taskId, val, maxTask) => {
+                    return `<input onchange="updateTaskGrade('${taskId}', '${eId}', this.value)" type="number" min="0" max="${maxTask}" value="${val !== undefined && val !== '' ? val : ''}" class="gradebook-input w-12 h-9 text-center font-black rounded border border-slate-300 focus:border-brand-teal outline-none bg-white text-xs">`;
+                };
+
+                const makeDirectInput = (fieldKey, val, maxVal, extraClass="") => {
+                    return `<input onchange="updateDirectGrade('${eId}', '${fieldKey}', this.value)" type="number" min="0" max="${maxVal}" value="${val !== undefined && val !== '' ? val : ''}" class="gradebook-input w-12 h-9 text-center font-black rounded border border-slate-300 focus:border-brand-teal outline-none bg-white text-xs ${extraClass}">`;
+                };
+
+                // Asistencia y Participación Directas
+                const asiVal = n.asistencia !== undefined ? Number(n.asistencia) : 0;
+                const parVal = n.participacion !== undefined ? Number(n.participacion) : 0;
+
+                // TAREAS: Calcular suma y ponderación automática
+                let tarTaskCols = '';
+                let tarEarnedSum = 0;
+                let tarMaxSum = 0;
+
+                if (tasksByCat.tareas.length > 0) {
+                    tasksByCat.tareas.forEach(t => {
+                        const taskMax = Number(t.maxPts || 100);
+                        const score = globalData.entregas?.[t.id]?.[eId]?.nota;
+                        tarMaxSum += taskMax;
+                        if(score !== undefined && score !== "") tarEarnedSum += Number(score);
+                        tarTaskCols += `<td class="p-1 text-center bg-teal-50/30">${makeTaskInput(t.id, score, taskMax)}</td>`;
+                    });
+                }
+
+                let tarPonderado = 0;
+                if (tarMaxSum > 0) {
+                    tarPonderado = (tarEarnedSum / tarMaxSum) * pond.tareas;
+                    if (tarPonderado > pond.tareas) tarPonderado = pond.tareas;
+                } else {
+                    tarPonderado = n.tareas !== undefined ? Number(n.tareas) : 0;
+                }
+                tarPonderado = Math.round(tarPonderado * 10) / 10;
+
+                // Función aux para procesar evaluaciones
+                const processCategory = (catKey, catMax) => {
+                    const tasksList = tasksByCat[catKey];
+                    let cols = '';
+                    let earnedSum = 0;
+                    let maxSum = 0;
+
+                    if (tasksList.length > 0) {
+                        tasksList.forEach(t => {
+                            const taskMax = Number(t.maxPts || 100);
+                            const score = globalData.entregas?.[t.id]?.[eId]?.nota;
+                            maxSum += taskMax;
+                            if(score !== undefined && score !== "") earnedSum += Number(score);
+                            cols += `<td class="p-1 text-center bg-slate-50">${makeTaskInput(t.id, score, taskMax)}</td>`;
+                        });
+                        let pondVal = maxSum > 0 ? (earnedSum / maxSum) * catMax : 0;
+                        return { cols, score: Math.round(pondVal * 10) / 10 };
+                    } else {
+                        const directScore = n[catKey] !== undefined ? Number(n[catKey]) : 0;
+                        cols = `<td class="p-1 text-center bg-slate-50">${makeDirectInput(catKey, n[catKey], catMax)}</td>`;
+                        return { cols, score: directScore };
+                    }
+                };
+
+                const meRes = processCategory('midtermEscrito', pond.midtermEscrito);
+                const moRes = processCategory('midtermOral', pond.midtermOral);
+                const feRes = processCategory('finalEscrito', pond.finalEscrito);
+                const foRes = processCategory('finalOral', pond.finalOral);
+
+                const recVal = n.recuperatorio !== undefined ? Number(n.recuperatorio) : 0;
+
+                const baseSum = asiVal + parVal + tarPonderado + meRes.score + moRes.score + feRes.score + foRes.score;
+                let total = baseSum < 55 && recVal > 0 ? Math.min(baseSum + recVal, 55) : baseSum;
+                total = Math.min(100, Math.round(total * 10) / 10);
+
+                const statusClass = total >= 55 ? 'text-brand-teal' : 'text-red-500';
+
+                tbody += `<tr class="hover:bg-slate-100 transition-colors border-b border-slate-200">
+                    <td class="p-2 text-center text-xs font-bold text-slate-400">${index + 1}</td>
+                    <td class="p-2 font-black text-brand-navy text-xs md:text-sm uppercase truncate max-w-[150px] md:max-w-xs" title="${e.nombre}">${e.nombre}</td>
+                    
+                    <td class="p-1 text-center">${makeDirectInput('asistencia', n.asistencia, pond.asistencia)}</td>
+                    <td class="p-1 text-center">${makeDirectInput('participacion', n.participacion, pond.participacion)}</td>
+                    
+                    ${tarTaskCols}
+                    <td class="p-1 text-center bg-teal-100/50 font-black text-brand-teal text-sm">${tarPonderado}</td>
+                    
+                    ${meRes.cols}
+                    ${moRes.cols}
+                    ${feRes.cols}
+                    ${foRes.cols}
+                    
+                    <td class="p-1 text-center bg-yellow-50">${makeDirectInput('recuperatorio', n.recuperatorio, 10, "border-yellow-300 text-yellow-600")}</td>
+                    <td class="p-2 text-center bg-slate-50 border-l-2 border-slate-200 font-black ${statusClass} text-base md:text-lg">${total}</td>
                 </tr>`;
             });
 
-            html += `</tbody></table></div></div>`;
-            container.innerHTML = html;
+            container.innerHTML = `
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+                <div class="overflow-x-auto hide-scroll pb-2">
+                    <table class="gradebook-table w-full text-left border-collapse min-w-max">
+                        <thead class="bg-brand-navy text-brand-yellow font-black text-[9px] md:text-[10px] uppercase tracking-wider">
+                            <tr>${headers}</tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            ${tbody}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
         }
 
-        // --- GESTIÓN DE ALUMNOS POR EL DOCENTE ---
+        function toggleGradeDetails() {
+            const container = document.getElementById('grades-details-container');
+            const icon = document.getElementById('icon-grades-toggle');
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            } else {
+                container.classList.add('hidden');
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            }
+        }
+
+        // --- BOLETÍN DE ESTUDIANTE ACTUALIZADO ---
+        function renderStudentGrades() {
+            setActiveNav('s-nav-3');
+            const main = document.getElementById('app-content');
+            const e = globalData.estudiantes?.[currentUser.id] || currentUser;
+            const n = e.notas || {};
+            const pond = getGroupPonderaciones(e.cursoId);
+
+            const asiVal = n.asistencia !== undefined ? Number(n.asistencia) : 0;
+            const parVal = n.participacion !== undefined ? Number(n.participacion) : 0;
+            const recVal = n.recuperatorio !== undefined ? Number(n.recuperatorio) : 0;
+
+            // Tareas del alumno
+            let tareasListHtml = '';
+            let tarEarnedSum = 0;
+            let tarMaxSum = 0;
+
+            for(let pId in globalData.publicaciones) {
+                const p = globalData.publicaciones[pId];
+                if((p.cursoId === e.cursoId || p.cursoId === 'all') && p.categoria === 'tareas') {
+                    const taskMax = Number(p.maxPts || 100);
+                    const score = globalData.entregas?.[pId]?.[currentUser.id]?.nota;
+                    tarMaxSum += taskMax;
+                    if(score !== undefined && score !== "") {
+                        tarEarnedSum += Number(score);
+                        tareasListHtml += `<div class="flex justify-between items-center text-xs text-slate-500 py-1 pl-4"><span class="truncate w-48">• ${p.titulo}</span><span class="font-bold">${score} / ${taskMax} pts</span></div>`;
+                    } else {
+                        tareasListHtml += `<div class="flex justify-between items-center text-xs text-slate-400 italic py-1 pl-4"><span class="truncate w-48">• ${p.titulo}</span><span>Pendiente</span></div>`;
+                    }
+                }
+            }
+
+            let tarPonderado = 0;
+            if(tarMaxSum > 0) {
+                tarPonderado = (tarEarnedSum / tarMaxSum) * pond.tareas;
+                if (tarPonderado > pond.tareas) tarPonderado = pond.tareas;
+            } else {
+                tarPonderado = n.tareas !== undefined ? Number(n.tareas) : 0;
+            }
+            tarPonderado = Math.round(tarPonderado * 10) / 10;
+
+            // Función para calcular categoría de exámenes o directas
+            const getCatScore = (catKey, catMax) => {
+                let earnedSum = 0, maxSum = 0, count = 0;
+                for(let pId in globalData.publicaciones) {
+                    const p = globalData.publicaciones[pId];
+                    if((p.cursoId === e.cursoId || p.cursoId === 'all') && p.categoria === catKey) {
+                        count++;
+                        const taskMax = Number(p.maxPts || 100);
+                        const score = globalData.entregas?.[pId]?.[currentUser.id]?.nota;
+                        maxSum += taskMax;
+                        if(score !== undefined && score !== "") earnedSum += Number(score);
+                    }
+                }
+                if (count > 0 && maxSum > 0) {
+                    let score = (earnedSum / maxSum) * catMax;
+                    return Math.round(score * 10) / 10;
+                } else {
+                    return n[catKey] !== undefined ? Number(n[catKey]) : 0;
+                }
+            };
+
+            const meVal = getCatScore('midtermEscrito', pond.midtermEscrito);
+            const moVal = getCatScore('midtermOral', pond.midtermOral);
+            const feVal = getCatScore('finalEscrito', pond.finalEscrito);
+            const foVal = getCatScore('finalOral', pond.finalOral);
+
+            const baseSum = asiVal + parVal + tarPonderado + meVal + moVal + feVal + foVal;
+            let final = baseSum < 55 && recVal > 0 ? Math.min(baseSum + recVal, 55) : baseSum;
+            final = Math.min(100, Math.round(final * 10) / 10);
+
+            let detailsHtml = `
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">ASISTENCIA (${pond.asistencia} PTS)</span><span class="font-black text-base md:text-lg">${asiVal}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">PARTICIPACIÓN (${pond.participacion} PTS)</span><span class="font-black text-base md:text-lg">${parVal}</span></div>
+                
+                <div class="border-b border-slate-100 pb-3">
+                    <div class="flex justify-between items-center mb-1"><span class="text-xs font-black uppercase text-brand-teal">TAREAS Y PRÁCTICAS (${pond.tareas} PTS)</span><span class="font-black text-brand-teal text-base md:text-lg">${tarPonderado} / ${pond.tareas}</span></div>
+                    ${tareasListHtml ? `<div class="bg-slate-50 p-2 rounded-xl border border-slate-100 space-y-1 mt-2">${tareasListHtml}</div>` : ''}
+                </div>
+
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-navy">MIDTERM ESCRITO (${pond.midtermEscrito} PTS)</span><span class="font-black text-base md:text-lg">${meVal}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-navy">MIDTERM ORAL (${pond.midtermOral} PTS)</span><span class="font-black text-base md:text-lg">${moVal}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-navy">FINAL ESCRITO (${pond.finalEscrito} PTS)</span><span class="font-black text-base md:text-lg">${feVal}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-navy">FINAL ORAL (${pond.finalOral} PTS)</span><span class="font-black text-base md:text-lg">${foVal}</span></div>
+                <div class="flex justify-between pt-2 items-center"><span class="text-xs font-black uppercase text-yellow-500">RECUPERATORIO (10 PTS)<br><span class="text-[10px] text-slate-400 block mt-1">(Para aprobar con 55 pts)</span></span><span class="font-black text-yellow-500 text-base md:text-lg">${recVal}</span></div>
+            `;
+
+            main.innerHTML = `<div class="max-w-2xl mx-auto w-full">
+                <div class="text-center mt-2">
+                    <h3 class="font-black text-brand-navy text-2xl md:text-3xl uppercase mb-6 md:mb-8 italic">Mis Notas</h3>
+                    
+                    <div class="w-48 h-48 mx-auto bg-brand-navy rounded-full flex flex-col items-center justify-center shadow-2xl border-[8px] ${final >= 55 ? 'border-brand-teal' : 'border-red-400'} mb-6 transition-all hover:scale-105">
+                        <span class="text-7xl font-black text-white leading-none">${final}</span>
+                        <span class="text-[11px] font-bold text-slate-300 uppercase tracking-widest mt-3">Puntos Totales</span>
+                    </div>
+
+                    <button onclick="toggleGradeDetails()" class="mx-auto flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-brand-navy font-black text-xs md:text-sm px-6 py-3 rounded-full mb-8 transition-colors uppercase shadow-sm">
+                        Ver más detalles <i id="icon-grades-toggle" class="fa-solid fa-chevron-down"></i>
+                    </button>
+
+                    <div id="grades-details-container" class="hidden bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm text-left space-y-4 border border-slate-100">
+                        ${detailsHtml}
+                    </div>
+                </div>
+            </div>`;
+        }
+
         function renderTeacherStudents() {
             setActiveNav('t-nav-2');
             const main = document.getElementById('app-content');
-            
-            let html = `
-                <div class="max-w-7xl mx-auto w-full">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase italic tracking-tighter">Lista de Alumnos</h3>
-                        <button onclick="modalNuevoEstudiante()" class="bg-brand-teal hover:bg-teal-400 transition-colors text-white p-3 md:px-6 md:py-3 rounded-xl text-sm font-black shadow-lg">+ NUEVO ALUMNO</button>
+            let html = `<div class="max-w-7xl mx-auto w-full">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase italic">Alumnos</h3>
+                    <div class="flex gap-2">
+                        <button onclick="modalCargaMasiva()" class="bg-brand-yellow hover:bg-yellow-400 text-brand-navy p-3 md:px-5 md:py-3 rounded-xl text-xs md:text-sm font-black shadow-lg transition-colors"><i class="fa-solid fa-file-excel mr-1 md:mr-2"></i><span class="hidden md:inline">CARGA </span>MASIVA</button>
+                        <button onclick="modalNuevoAlumno()" class="bg-brand-teal hover:bg-teal-400 transition-colors text-white p-3 md:px-5 md:py-3 rounded-xl text-xs md:text-sm font-black shadow-lg"><i class="fa-solid fa-plus mr-1 md:mr-2"></i>NUEVO <span class="hidden md:inline">ALUMNO</span></button>
                     </div>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">`;
-
-            const estudiantes = globalData.estudiantes || {};
-            let count = 0;
-            for(let id in estudiantes) {
-                count++;
-                const e = estudiantes[id];
-                const cursoNombre = globalData.cursos?.[e.cursoId]?.nombre || "Sin Grupo";
-                html += `
-                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex justify-between items-center hover:shadow-md transition-shadow">
-                        <div>
-                            <h4 class="font-black text-brand-navy uppercase text-lg">${e.nombre}</h4>
-                            <p class="text-xs font-bold text-brand-teal uppercase mt-1"><i class="fa-solid fa-graduation-cap mr-1"></i> ${cursoNombre}</p>
-                            <p class="text-[11px] font-black text-slate-400 uppercase mt-2 bg-slate-100 px-3 py-1 rounded-xl w-max">PIN: ${e.codigo || '--'}</p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="modalEditarEstudiante('${id}')" class="text-brand-teal hover:bg-brand-teal/10 p-2 rounded-xl transition-colors text-lg"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="eliminarRegistro('estudiantes/${id}')" class="text-slate-300 hover:text-red-500 p-2 rounded-xl transition-colors text-lg"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </div>`;
+                </div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">`;
+            
+            for(let id in globalData.estudiantes) {
+                const e = globalData.estudiantes[id];
+                html += `<div class="bg-white p-5 rounded-2xl shadow-sm flex justify-between items-center border border-slate-100 hover:shadow-md transition-shadow">
+                    <div class="flex-1 min-w-0 pr-4">
+                        <p class="font-black text-brand-navy text-base md:text-lg uppercase mb-2 truncate">${e.nombre}</p>
+                        <p class="text-[10px] md:text-xs font-bold text-brand-teal uppercase bg-brand-teal/5 inline-block px-3 py-1.5 rounded">CÓDIGO: ${e.codigo} <span class="text-slate-300 mx-1">|</span> CURSO: ${globalData.cursos?.[e.cursoId]?.nombre || 'N/A'}</p>
+                    </div>
+                    <button onclick="eliminarRegistro('estudiantes/${id}')" class="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"><i class="fa-solid fa-trash text-xl md:text-2xl"></i></button>
+                </div>`;
             }
-
-            if(count === 0) {
-                html += `<p class="col-span-full text-center text-slate-400 font-bold text-sm py-10">No hay estudiantes registrados aún.</p>`;
+            if(!globalData.estudiantes || Object.keys(globalData.estudiantes).length === 0) {
+                html += `<p class="col-span-full text-center text-slate-400 font-bold text-sm py-10">No hay alumnos registrados.</p>`;
             }
-
             main.innerHTML = html + `</div></div>`;
         }
 
-        function modalNuevoEstudiante() {
-            let options = '';
-            for(let key in globalData.cursos) options += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
+        function modalCargaMasiva() {
+            let ops = '<option value="">-- SELECCIONA UN GRUPO --</option>';
+            for(let key in globalData.cursos) ops += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
+            openModal(`
+                <div class="p-6 md:p-8 h-full flex flex-col">
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic flex-shrink-0">Carga Masiva Inteligente <i class="fa-solid fa-file-excel text-green-600 ml-2"></i></h3>
+                    <div class="space-y-4 flex-1 flex flex-col min-h-0">
+                        <div class="flex-shrink-0">
+                            <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-1">1. Selecciona el Grupo Destino:</label>
+                            <select id="masivo-cur" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal border border-slate-200 transition-colors">${ops}</select>
+                        </div>
+                        
+                        <div class="flex-1 flex flex-col min-h-[30vh]">
+                            <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-1 mt-2">2. Pega los datos de tus alumnos:</label>
+                            <div class="bg-blue-50 p-3 rounded-xl mb-2 border border-blue-100">
+                                <p class="text-[10px] md:text-xs text-blue-800 font-bold leading-tight"><i class="fa-solid fa-circle-info mr-1"></i> Formato requerido: <b>NOMBRE COMPLETO - CÓDIGO</b> (Separados por un guion -). Una fila por alumno.</p>
+                            </div>
+                            <textarea id="masivo-datos" placeholder="EJEMPLOS:\nJUAN CARLOS PEREZ GOMEZ - JP12345\nMARIA MAMANI CHUQUIMIA - MM456789\nLIZETH ROXANA SILVA VARGAS - 789012" class="w-full flex-1 p-4 bg-slate-50 rounded-2xl font-bold outline-none focus:bg-white focus:border-brand-teal transition-colors border border-slate-200 text-sm whitespace-pre shadow-inner resize-none"></textarea>
+                        </div>
+                        
+                        <button id="btn-procesar-masivo" onclick="procesarCargaMasiva()" class="w-full flex-shrink-0 bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 md:py-5 rounded-2xl font-black shadow-xl mt-2 uppercase text-sm tracking-widest"><i class="fa-solid fa-upload mr-2"></i> Procesar y Registrar</button>
+                    </div>
+                </div>`, true); 
+        }
+
+        async function procesarCargaMasiva() {
+            const cur = document.getElementById('masivo-cur').value;
+            const text = document.getElementById('masivo-datos').value.trim();
+            const btn = document.getElementById('btn-procesar-masivo');
             
+            if(!cur) return alert("Por favor, selecciona un grupo destino en el paso 1.");
+            if(!text) return alert("Pega los datos de los estudiantes en la caja de texto.");
+
+            const lines = text.split('\n');
+            let successCount = 0;
+            let errors = 0;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Procesando...';
+            btn.classList.add('opacity-50');
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                let nombre = '';
+                let codigo = '';
+
+                const lastHyphenIndex = line.lastIndexOf('-');
+                if (lastHyphenIndex !== -1) {
+                    nombre = line.substring(0, lastHyphenIndex).trim().toUpperCase();
+                    codigo = line.substring(lastHyphenIndex + 1).trim().toUpperCase();
+                } else {
+                    let parts = line.split('\t');
+                    if (parts.length < 2) parts = line.split(',');
+                    if (parts.length < 2) parts = line.split(/\s{2,}/);
+
+                    if (parts.length >= 2) {
+                        codigo = parts[parts.length - 1].trim().toUpperCase();
+                        parts.pop();
+                        nombre = parts.join(' ').trim().toUpperCase();
+                    }
+                }
+
+                if (nombre && codigo) {
+                    try {
+                        await db.ref('estudiantes').push({ 
+                            nombre: nombre, 
+                            codigo: codigo, 
+                            cursoId: cur, 
+                            notas: {} 
+                        });
+                        successCount++;
+                    } catch (e) {
+                        errors++;
+                    }
+                } else {
+                    errors++;
+                }
+            }
+
+            alert(`CARGA MASIVA COMPLETADA:\n\n✅ Estudiantes registrados con éxito: ${successCount}\n❌ Filas con error o formato inválido: ${errors}`);
+            closeModal();
+            renderTeacherStudents();
+        }
+
+        async function modalNuevoAlumno() {
+            let ops = '';
+            for(let key in globalData.cursos) ops += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
             openModal(`
                 <div class="p-6 md:p-8">
                     <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Nuevo Estudiante</h3>
                     <div class="space-y-4">
-                        <input id="e-nom" type="text" placeholder="NOMBRE COMPLETO" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors text-sm">
-                        <input id="e-cod" type="text" placeholder="PIN O CÓDIGO DE ACCESO (EJ: EST123)" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors text-sm">
+                        <input id="al-nom" type="text" placeholder="NOMBRE COMPLETO" class="w-full p-4 bg-slate-100 rounded-2xl font-black uppercase outline-none focus:bg-white focus:border-brand-teal transition-colors border-2 border-transparent text-sm">
+                        <input id="al-cod" type="text" placeholder="CÓDIGO DE ACCESO (EJ: JUAN123)" class="w-full p-4 bg-slate-100 rounded-2xl font-black outline-none uppercase focus:bg-white focus:border-brand-teal transition-colors border-2 border-transparent text-sm">
                         <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Grupo / Curso:</label>
-                            <select id="e-cur" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal border border-slate-200">${options}</select>
+                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Asignar a Grupo:</label>
+                            <select id="al-cur" class="w-full p-4 bg-slate-100 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal border-2 border-transparent">${ops}</select>
                         </div>
-                        <button onclick="saveEstudiante()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest mt-2">Registrar Estudiante</button>
+                        <button onclick="saveAlumno()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg mt-2 uppercase text-sm">Registrar</button>
                     </div>
-                </div>
-            `, false);
+                </div>`, false);
         }
 
-        async function saveEstudiante() {
-            const nom = document.getElementById('e-nom').value.trim().toUpperCase();
-            const cod = document.getElementById('e-cod').value.trim().toUpperCase();
-            const cur = document.getElementById('e-cur').value;
-
-            if(!nom || !cod || !cur) return alert("Por favor completa todos los campos.");
-
-            await db.ref('estudiantes').push({
-                nombre: nom,
-                codigo: cod,
-                cursoId: cur
-            });
-
-            closeModal();
-            renderTeacherStudents();
+        async function saveAlumno() {
+            const n = document.getElementById('al-nom').value.trim().toUpperCase();
+            const cod = document.getElementById('al-cod').value.trim().toUpperCase();
+            const cur = document.getElementById('al-cur').value;
+            if(!n || !cod || !cur) return;
+            await db.ref('estudiantes').push({ nombre: n, codigo: cod, cursoId: cur, notas: {} });
+            closeModal(); renderTeacherStudents();
         }
 
-        function modalEditarEstudiante(id) {
-            const e = globalData.estudiantes[id];
-            if(!e) return;
-
-            let options = '';
-            for(let key in globalData.cursos) {
-                options += `<option value="${key}" ${e.cursoId === key ? 'selected' : ''}>${globalData.cursos[key].nombre}</option>`;
-            }
-
-            openModal(`
-                <div class="p-6 md:p-8">
-                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Editar Estudiante</h3>
-                    <div class="space-y-4">
-                        <input id="ed-e-nom" type="text" value="${e.nombre || ''}" placeholder="NOMBRE COMPLETO" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors text-sm">
-                        <input id="ed-e-cod" type="text" value="${e.codigo || ''}" placeholder="PIN O CÓDIGO DE ACCESO" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors text-sm">
-                        <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Grupo / Curso:</label>
-                            <select id="ed-e-cur" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal border border-slate-200">${options}</select>
-                        </div>
-                        <button onclick="saveUpdateEstudiante('${id}')" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest mt-2">Guardar Cambios</button>
-                    </div>
-                </div>
-            `, false);
-        }
-
-        async function saveUpdateEstudiante(id) {
-            const nom = document.getElementById('ed-e-nom').value.trim().toUpperCase();
-            const cod = document.getElementById('ed-e-cod').value.trim().toUpperCase();
-            const cur = document.getElementById('ed-e-cur').value;
-
-            if(!nom || !cod || !cur) return alert("Por favor completa todos los campos.");
-
-            await db.ref(`estudiantes/${id}`).update({
-                nombre: nom,
-                codigo: cod,
-                cursoId: cur
-            });
-
-            closeModal();
-            renderTeacherStudents();
-        }
-
-        // --- AJUSTES Y CONFIGURACIÓN GENERAL ---
         function renderTeacherProfile() {
             setActiveNav('t-nav-5');
-            const main = document.getElementById('app-content');
             const conf = globalData.configuracion || {};
-
-            main.innerHTML = `
-                <div class="max-w-2xl mx-auto w-full">
-                    <h3 class="font-black text-2xl md:text-3xl text-brand-navy mb-6 uppercase italic tracking-tighter">Ajustes del Sistema</h3>
-                    <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-5">
-                        <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Nombre del Docente / Admin:</label>
-                            <input id="cfg-name" type="text" value="${conf.adminName || 'DOCENTE'}" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors text-sm">
-                        </div>
-                        <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">PIN / Código Docente:</label>
-                            <input id="cfg-code" type="text" value="${conf.adminCode || 'PROFE2026'}" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors text-sm">
-                        </div>
-                        <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Número de WhatsApp de Contacto:</label>
-                            <input id="cfg-wa" type="text" value="${conf.whatsapp || '59100000000'}" placeholder="Ej: 59170000000" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none focus:border-brand-teal focus:bg-white transition-colors text-sm">
-                        </div>
-                        <button onclick="saveConfiguracion()" class="w-full bg-brand-navy hover:bg-slate-800 transition-colors text-brand-yellow py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest mt-4">Guardar Ajustes</button>
+            document.getElementById('app-content').innerHTML = `<div class="max-w-2xl mx-auto w-full">
+                <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase mb-6 italic">Configuración</h3>
+                <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm space-y-5 border border-slate-100">
+                    <div>
+                        <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-2">Nombre del Docente/Admin:</label>
+                        <input id="set-name" type="text" value="${conf.adminName || 'DOCENTE'}" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none focus:border-brand-teal focus:bg-white transition-colors border-2 border-transparent text-sm">
                     </div>
-                </div>`;
+                    <div>
+                        <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-2">Código Maestro (Para entrar al sistema):</label>
+                        <input id="set-code" type="text" value="${conf.adminCode || 'PROFE2026'}" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none focus:border-brand-teal focus:bg-white transition-colors border-2 border-transparent text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-2">Número de WhatsApp (Sin símbolo +):</label>
+                        <input id="set-wa" type="number" value="${conf.whatsapp || '591000000'}" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none focus:border-brand-teal focus:bg-white transition-colors border-2 border-transparent text-sm">
+                    </div>
+                    <button onclick="saveProfile()" class="w-full bg-brand-navy hover:bg-slate-800 transition-colors text-white py-4 md:py-5 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl mt-6">Guardar Cambios</button>
+                </div>
+            </div>`;
         }
 
-        async function saveConfiguracion() {
-            const name = document.getElementById('cfg-name').value.trim().toUpperCase();
-            const code = document.getElementById('cfg-code').value.trim().toUpperCase();
-            const wa = document.getElementById('cfg-wa').value.trim();
-
-            if(!name || !code) return alert("El nombre y código no pueden estar vacíos.");
-
-            await db.ref('configuracion').update({
-                adminName: name,
-                adminCode: code,
-                whatsapp: wa
+        async function saveProfile() {
+            await db.ref('configuracion').set({
+                adminName: document.getElementById('set-name').value,
+                adminCode: document.getElementById('set-code').value.toUpperCase(),
+                whatsapp: document.getElementById('set-wa').value
             });
-
-            currentUser.nombre = name;
-            document.getElementById('display-name').innerText = name;
-            alert("Configuración guardada con éxito.");
-        }
-
-        // --- VISTA DE CALIFICACIONES DEL ESTUDIANTE ---
-        function renderStudentGrades() {
-            setActiveNav('s-nav-3');
-            const main = document.getElementById('app-content');
-            
-            const cursoId = currentUser.cursoId;
-            const pond = getGroupPonderaciones(cursoId);
-
-            const tareas = [];
-            for(let k in globalData.publicaciones) {
-                const p = globalData.publicaciones[k];
-                if((p.cursoId === cursoId || p.cursoId === 'all') && p.categoria && p.categoria !== 'none') {
-                    tareas.push({ ...p, id: k });
-                }
-            }
-
-            let catEarned = { tareas: 0, asistencia: 0, participacion: 0, midtermEscrito: 0, midtermOral: 0, finalEscrito: 0, finalOral: 0 };
-            let catMax = { tareas: 0, asistencia: 0, participacion: 0, midtermEscrito: 0, midtermOral: 0, finalEscrito: 0, finalOral: 0 };
-
-            let itemsHtml = '';
-            tareas.forEach(t => {
-                const ent = globalData.entregas?.[t.id]?.[currentUser.id];
-                const isGraded = ent && ent.nota !== undefined && ent.nota !== "";
-                const notaVal = isGraded ? Number(ent.nota) : "--";
-                const maxP = t.maxPts || 100;
-
-                if (isGraded) {
-                    const cat = t.categoria || 'tareas';
-                    if (catEarned[cat] !== undefined) {
-                        catEarned[cat] += Number(ent.nota);
-                        catMax[cat] += maxP;
-                    }
-                }
-
-                itemsHtml += `
-                    <div class="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm">
-                        <div>
-                            <p class="font-black text-brand-navy text-sm uppercase">${t.titulo}</p>
-                            <span class="text-[10px] font-bold text-brand-teal bg-brand-teal/10 px-2 py-0.5 rounded uppercase">${t.categoria || 'Tarea'}</span>
-                        </div>
-                        <div class="text-right">
-                            <span class="font-black text-base ${isGraded ? 'text-brand-teal' : 'text-slate-400'}">${notaVal} / ${maxP} PTS</span>
-                        </div>
-                    </div>`;
-            });
-
-            let finalScore = 0;
-            let categories = ['asistencia', 'participacion', 'tareas', 'midtermEscrito', 'midtermOral', 'finalEscrito', 'finalOral'];
-            categories.forEach(cat => {
-                const weight = pond[cat] || 0;
-                if (catMax[cat] > 0) {
-                    const ratio = catEarned[cat] / catMax[cat];
-                    finalScore += ratio * weight;
-                } else if (currentUser.notas?.[cat] !== undefined) {
-                    const directVal = Number(currentUser.notas[cat]);
-                    finalScore += (directVal / 100) * weight;
-                }
-            });
-
-            const roundedFinal = Math.round(finalScore);
-
-            let html = `
-                <div class="max-w-4xl mx-auto w-full">
-                    <h3 class="font-black text-2xl md:text-3xl text-brand-navy mb-6 uppercase italic tracking-tighter">Mis Calificaciones</h3>
-                    
-                    <div class="bg-brand-navy text-white p-6 md:p-8 rounded-3xl shadow-xl mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div>
-                            <span class="text-xs font-black text-brand-teal uppercase tracking-widest block mb-1">PROMEDIO ACUMULADO CALCULADO</span>
-                            <h4 class="text-3xl md:text-4xl font-black text-white uppercase">${currentUser.nombre}</h4>
-                        </div>
-                        <div class="bg-brand-teal text-white px-8 py-4 rounded-2xl text-center shadow-lg">
-                            <span class="text-3xl font-black block">${roundedFinal} / 100</span>
-                            <span class="text-[10px] uppercase font-black tracking-widest opacity-80">Puntaje Final</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-100 p-5 rounded-3xl mb-6">
-                        <h4 class="font-black text-brand-navy text-sm uppercase mb-3 italic">Detalle por Actividades</h4>
-                        <div class="space-y-3">
-                            ${itemsHtml || '<p class="text-xs text-slate-400 font-bold italic text-center py-4">No tienes actividades calificadas aún.</p>'}
-                        </div>
-                    </div>
-                </div>`;
-
-            main.innerHTML = html;
+            alert("Configuración Actualizada");
         }
 
         function modalStudentSettings() {
             openModal(`
                 <div class="p-6 md:p-8">
-                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Ajustes de la Cuenta</h3>
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic"><i class="fa-solid fa-gear text-brand-teal mr-2"></i> Mi Cuenta</h3>
                     <div class="space-y-4">
+                        <p class="text-sm text-slate-500 font-bold mb-2">Ingresa tu nuevo PIN o identificador para ingresar al campus. ¡Anótalo para no olvidarlo!</p>
                         <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Tu Nombre:</label>
-                            <input type="text" value="${currentUser.nombre || ''}" disabled class="w-full p-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase outline-none text-sm cursor-not-allowed">
+                            <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-2">Nuevo Identificador / PIN:</label>
+                            <input id="new-student-pin" type="text" placeholder="EJ: MARIA2026" value="${currentUser.codigo}" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors border border-slate-200 text-sm">
                         </div>
-                        <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Tu PIN / Código:</label>
-                            <input type="text" value="${currentUser.codigo || ''}" disabled class="w-full p-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase outline-none text-sm cursor-not-allowed">
-                        </div>
-                        <p class="text-xs text-slate-400 font-bold italic">Si necesitas cambiar tu nombre o PIN, contacta a tu docente.</p>
-                        <button onclick="closeModal()" class="w-full bg-brand-teal text-white py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest">Aceptar</button>
+                        <button onclick="saveStudentPin()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl mt-4">Actualizar PIN</button>
                     </div>
-                </div>
-            `, false);
+                </div>`, false);
         }
 
-        // --- FUNCIONES AUXILIARES DE MODAL Y PWA ---
-        function openModal(content, isFull = false) {
+        async function saveStudentPin() {
+            const newPin = document.getElementById('new-student-pin').value.trim().toUpperCase();
+            if(!newPin) return alert("Ingresa un PIN válido.");
+            await db.ref(`estudiantes/${currentUser.id}`).update({ codigo: newPin });
+            currentUser.codigo = newPin;
+            alert("¡PIN actualizado con éxito!");
+            closeModal();
+        }
+
+        function openModal(html, fullScreen = false) {
             const overlay = document.getElementById('modal-overlay');
-            const modalBox = document.getElementById('modal-box');
-            const modalContent = document.getElementById('modal-content');
-            
-            if(!overlay || !modalContent) return;
-            modalContent.innerHTML = content;
-            
-            if (isFull) {
-                modalBox.className = "bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-full h-full rounded-none md:rounded-2xl overflow-hidden";
+            const box = document.getElementById('modal-box');
+            const content = document.getElementById('modal-content');
+
+            if (fullScreen) {
+                box.className = "bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-full h-full rounded-none overflow-hidden";
             } else {
-                modalBox.className = "bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-[95vw] md:max-w-4xl max-h-[90vh] rounded-2xl md:rounded-[2rem] overflow-hidden my-auto";
+                box.className = "bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-[95vw] md:max-w-4xl max-h-[90vh] rounded-2xl md:rounded-[2rem] overflow-hidden";
             }
-            
+
+            content.innerHTML = html;
             overlay.classList.remove('hidden');
-            window.history.pushState({ modalOpen: true }, "");
+            history.pushState({ modalOpen: true }, "");
         }
 
         function closeModal() {
-            const overlay = document.getElementById('modal-overlay');
-            if (overlay) overlay.classList.add('hidden');
+            document.getElementById('modal-overlay').classList.add('hidden');
         }
 
         async function eliminarRegistro(path) {
-            if (confirm("¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.")) {
+            if(confirm("¿Estás seguro de que deseas eliminar este registro?")) {
                 await db.ref(path).remove();
-                alert("Registro eliminado.");
             }
-        }
-
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            const banner = document.getElementById('install-banner');
-            if(banner) banner.style.display = 'block';
-        });
-
-        const installButton = document.getElementById('install-button');
-        if(installButton) {
-            installButton.addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    deferredPrompt = null;
-                    document.getElementById('install-banner').style.display = 'none';
-                }
-            });
         }
     </script>
 </body>
