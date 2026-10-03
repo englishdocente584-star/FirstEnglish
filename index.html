@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1fb6a6">
+<link rel="apple-touch-icon" href="icon-192.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>First English - Campus Virtual</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-storage-compat.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-teal': '#1fb6a6',
+                        'brand-yellow': '#fbc02d',
+                        'brand-navy': '#0d2238',
+                        'brand-light': '#ffffff'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap');
+        
+        html { font-size: 115%; }
+        
+        body { font-family: 'Nunito', sans-serif; background-color: #0d2238; color: #1e293b; -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+        
+        .app-container { width: 100%; height: 100vh; display: flex; flex-direction: column; position: relative; margin: 0 auto; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .btn-active:active { transform: scale(0.95); }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day { aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 800; font-size: 0.85rem; position: relative; cursor: pointer; transition: all 0.2s; }
+        .calendar-day:active { transform: scale(0.9); }
+        
+        input, select, textarea { font-size: 1rem !important; border: 2px solid #e2e8f0; }
+        input:focus, textarea:focus { border-color: #1fb6a6 !important; outline: none; }
+        
+        [contenteditable]:empty:before {
+            content: attr(data-placeholder);
+            color: #94a3b8;
+            font-style: italic;
+        }
+        
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; padding-bottom: env(safe-area-inset-bottom); z-index: 40; transition: all 0.3s ease;}
+        @media (min-width: 768px) {
+            .bottom-nav { width: max-content; left: 50%; transform: translateX(-50%); bottom: 24px; border-radius: 3rem; padding: 1rem 3rem; box-shadow: 0 15px 40px rgba(0,0,0,0.15); border: 1px solid #f1f5f9; }
+        }
+
+        .active-nav { color: #1fb6a6 !important; }
+        
+        .highlight-task {
+            animation: highlight-fade 2.5s ease-out;
+            border-color: #fbc02d !important;
+            transform: scale(1.02);
+            z-index: 10;
+        }
+        @keyframes highlight-fade { 
+            0% { background-color: #fff9c4; box-shadow: 0 0 0 4px #fbc02d; } 
+            70% { background-color: #fff9c4; box-shadow: 0 0 0 2px rgba(251, 192, 45, 0.5); }
+            100% { background-color: white; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); transform: scale(1); } 
+        }
+    </style>
+</head>
+<body class="bg-brand-navy overflow-hidden">
+<div id="install-banner" style="display: none; background: #1fb6a6; color: white; padding: 15px; text-align: center; position: fixed; bottom: 0; left: 0; width: 100%; z-index: 100; font-family: 'Nunito', sans-serif; box-shadow: 0 -5px 20px rgba(0,0,0,0.2);">
+    <span style="font-weight: 800; font-size: 14px;">¡INSTALA EL CAMPUS EN TU CELULAR!</span>
+    <button id="install-button" style="background: #fbc02d; color: #0d2238; border: none; padding: 8px 20px; margin-left: 15px; border-radius: 12px; cursor: pointer; font-weight: 900; text-transform: uppercase; font-size: 12px;">
+        INSTALAR
+    </button>
+</div>
+    <div class="app-container bg-slate-50 shadow-2xl overflow-hidden">
+        
+        <div id="view-login" class="flex-1 flex flex-col items-center justify-center p-8 bg-brand-navy z-50 w-full">
+            <div class="w-32 h-32 bg-brand-teal rounded-full flex items-center justify-center border-4 border-brand-yellow mb-6 shadow-xl">
+                <span class="text-6xl font-black text-white">1</span>
+            </div>
+            <h1 class="text-4xl font-black text-white mb-1 uppercase tracking-tighter text-center">First <span class="text-brand-yellow">English</span></h1>
+            <p class="text-brand-teal font-bold text-sm tracking-[0.3em] mb-10 uppercase text-center">Academic Excellence</p>
+            
+            <div class="w-full max-w-sm space-y-4">
+                <input id="input-code" type="text" placeholder="IDENTIFICADOR / PIN DE VERIFICACIÓN" class="w-full py-4 px-6 rounded-2xl bg-white text-brand-navy text-center font-black tracking-widest outline-none shadow-sm">
+                <button onclick="handleLogin()" class="w-full bg-brand-yellow text-brand-navy font-black py-4 rounded-2xl shadow-lg btn-active uppercase tracking-widest hover:brightness-105 transition-all">Entrar</button>
+            </div>
+            <a id="btn-whatsapp-float" href="#" target="_blank" class="mt-10 flex items-center gap-3 bg-green-500 hover:bg-green-400 transition-colors text-white px-6 py-3 rounded-full font-bold shadow-lg text-lg"><i class="fa-brands fa-whatsapp text-2xl"></i> Ayuda</a>
+        </div>
+
+        <div id="view-app" class="hidden flex-1 flex flex-col overflow-hidden w-full">
+            <header class="bg-brand-navy p-5 pt-8 rounded-b-[2.5rem] shadow-xl text-white relative z-10 w-full">
+                <div class="flex justify-between items-center max-w-7xl mx-auto w-full">
+                    <div class="flex items-center gap-3">
+                        <div id="avatar" class="w-12 h-12 md:w-14 md:h-14 bg-brand-teal rounded-full flex items-center justify-center border-2 border-brand-yellow font-black text-2xl shadow-inner">?</div>
+                        <div>
+                            <h2 id="display-name" class="font-black text-xl md:text-2xl leading-none uppercase truncate w-40 md:w-auto max-w-[200px] md:max-w-md">Usuario</h2>
+                            <p id="display-role" class="text-xs md:text-sm text-brand-teal font-bold uppercase tracking-widest mt-1 italic">Cargando...</p>
+                        </div>
+                    </div>
+                    <button onclick="location.reload()" class="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors"><i class="fa-solid fa-power-off text-brand-yellow text-xl"></i></button>
+                </div>
+            </header>
+
+            <main id="app-content" class="flex-1 overflow-y-auto p-5 md:p-8 pb-32 md:pb-40 hide-scroll bg-slate-50 w-full"></main>
+
+            <nav id="nav-teacher" class="hidden bottom-nav border-t border-slate-200 flex justify-around md:justify-center md:gap-10 p-4 rounded-t-[2.5rem] md:rounded-full shadow-[0_-10px_25px_rgba(0,0,0,0.1)]">
+                <button onclick="renderTeacherDashboard()" id="t-nav-1" class="nav-btn flex flex-col items-center text-slate-400 hover:text-brand-teal transition-colors"><i class="fa-solid fa-calendar-check text-2xl md:text-3xl"></i><span class="text-xs font-bold mt-1 uppercase">Agenda</span></button>
+                <button onclick="renderTeacherGrupos()" id="t-nav-7" class="nav-btn flex flex-col items-center text-slate-400 hover:text-brand-teal transition-colors"><i class="fa-solid fa-layer-group text-2xl md:text-3xl"></i><span class="text-xs font-bold mt-1 uppercase">Grupos</span></button>
+                <button onclick="renderTeacherMateriales()" id="t-nav-6" class="nav-btn flex flex-col items-center text-slate-400 hover:text-brand-teal transition-colors"><i class="fa-solid fa-folder-open text-2xl md:text-3xl"></i><span class="text-xs font-bold mt-1 uppercase">Material</span></button>
+                <button onclick="renderTeacherStudents()" id="t-nav-2" class="nav-btn flex flex-col items-center text-slate-400 hover:text-brand-teal transition-colors"><i class="fa-solid fa-user-group text-2xl md:text-3xl"></i><span class="text-xs font-bold mt-1 uppercase">Alumnos</span></button>
+                <button onclick="renderTeacherGradesControl()" id="t-nav-4" class="nav-btn flex flex-col items-center text-slate-400 hover:text-brand-teal transition-colors"><i class="fa-solid fa-star text-2xl md:text-3xl"></i><span class="text-xs font-bold mt-1 uppercase">Notas</span></button>
+                <button onclick="renderTeacherProfile()" id="t-nav-5" class="nav-btn flex flex-col items-center text-slate-400 hover:text-brand-teal transition-colors"><i class="fa-solid fa-sliders text-2xl md:text-3xl"></i><span class="text-xs font-bold mt-1 uppercase">Ajustes</span></button>
+            </nav>
+
+            <nav id="nav-student" class="hidden bottom-nav border-t border-slate-200 flex justify-around md:justify-center md:gap-16 p-4 rounded-t-[2.5rem] md:rounded-full shadow-[0_-10px_25px_rgba(0,0,0,0.1)]">
+                <button onclick="renderStudentDashboard()" id="s-nav-1" class="nav-btn flex flex-col items-center text-slate-400 hover:text-brand-teal transition-colors"><i class="fa-solid fa-house text-2xl md:text-3xl"></i><span class="text-[11px] md:text-xs font-bold mt-1 uppercase">Inicio</span></button>
+                <button onclick="renderStudentMateriales()" id="s-nav-4" class="nav-btn flex flex-col items-center text-slate-400 hover:text-brand-teal transition-colors"><i class="fa-solid fa-folder-open text-2xl md:text-3xl"></i><span class="text-[11px] md:text-xs font-bold mt-1 uppercase">Material</span></button>
+                <button onclick="renderStudentGrades()" id="s-nav-3" class="nav-btn flex flex-col items-center text-slate-400 hover:text-brand-teal transition-colors"><i class="fa-solid fa-award text-2xl md:text-3xl"></i><span class="text-[11px] md:text-xs font-bold mt-1 uppercase">Mis Notas</span></button>
+            </nav>
+        </div>
+
+        <div id="modal-overlay" class="hidden fixed inset-0 bg-brand-navy/95 z-[60] flex items-center justify-center backdrop-blur-sm transition-all duration-300">
+            <div id="modal-box" class="bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-[98vw] md:max-w-6xl h-[95vh] rounded-2xl md:rounded-[2rem] overflow-hidden">
+                <button onclick="closeModal()" class="absolute top-3 right-3 md:top-5 md:right-5 text-slate-400 hover:text-red-500 z-50 transition-colors bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg border border-slate-100">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+                <div id="modal-content" class="overflow-y-auto hide-scroll w-full h-full"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- MANEJO DEL BOTÓN ATRÁS EN CELULARES ---
+        window.addEventListener('popstate', function(event) {
+            const overlay = document.getElementById('modal-overlay');
+            if (overlay && !overlay.classList.contains('hidden')) {
+                overlay.classList.add('hidden');
+            }
+        });
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBS6eZ9RDfMo073b6cTFgwwqccflCa6VpY",
+            authDomain: "englishinstitute-a8533.firebaseapp.com",
+            databaseURL: "https://englishinstitute-a8533-default-rtdb.firebaseio.com",
+            projectId: "englishinstitute-a8533",
+            storageBucket: "englishinstitute-a8533.firebasestorage.app",
+            messagingSenderId: "428855202948",
+            appId: "1:428855202948:web:de7ccb1b1f754b46889ed1",
+            measurementId: "G-9JH28RQFGJ"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const storage = firebase.storage(); 
+        
+        let currentUser = null;
+        let globalData = {};
+        let currentMonth = new Date();
+
+        db.ref().on('value', snap => {
+            globalData = snap.val() || {};
+            
+            const wa = globalData.configuracion?.whatsapp || "59100000000";
+            if(document.getElementById('btn-whatsapp-float')) document.getElementById('btn-whatsapp-float').href = `https://wa.me/${wa}`;
+            
+            if(currentUser) {
+                if(document.getElementById('t-nav-1')?.classList.contains('active-nav')) renderTeacherDashboard();
+                if(document.getElementById('s-nav-1')?.classList.contains('active-nav')) renderStudentDashboard();
+                if(document.getElementById('t-nav-7')?.classList.contains('active-nav')) renderTeacherGrupos();
+                
+                if(document.getElementById('carpetas-container')) {
+                    const currentFilter = document.getElementById('m-cur-filter')?.value || 'all';
+                    renderCarpetas(currentFilter);
+                }
+
+                if(document.getElementById('grades-table-container')) {
+                    const currentCourse = document.getElementById('g-cur')?.value;
+                    if(currentCourse) renderGradesTable(currentCourse);
+                }
+            }
+        });
+
+        function setActiveNav(id) {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active-nav'));
+            if(document.getElementById(id)) document.getElementById(id).classList.add('active-nav');
+        }
+
+        async function handleLogin() {
+            const code = document.getElementById('input-code').value.trim().toUpperCase();
+            if(!code) return;
+            const adminCode = globalData.configuracion?.adminCode || "PROFE2026";
+            
+            if(code === adminCode) {
+                currentUser = { rol: 'teacher', nombre: globalData.configuracion?.adminName || "DOCENTE" };
+                startSession();
+            } else {
+                let found = null;
+                for(let key in globalData.estudiantes) {
+                    if(globalData.estudiantes[key].codigo === code) {
+                        found = { ...globalData.estudiantes[key], id: key, rol: 'student' };
+                        break;
+                    }
+                }
+                if(found) { currentUser = found; startSession(); }
+                else alert("Código incorrecto");
+            }
+        }
+
+        function startSession() {
+            document.getElementById('view-login').classList.add('hidden');
+            document.getElementById('view-app').classList.remove('hidden');
+            document.getElementById('display-name').innerText = currentUser.nombre;
+            document.getElementById('avatar').innerText = currentUser.nombre.charAt(0);
+            
+            if(currentUser.rol === 'teacher') {
+                document.getElementById('display-role').innerText = "Administrator";
+                document.getElementById('nav-teacher').classList.remove('hidden');
+                renderTeacherDashboard();
+            } else {
+                document.getElementById('display-role').innerText = globalData.cursos?.[currentUser.cursoId]?.nombre || "Student";
+                document.getElementById('nav-student').classList.remove('hidden');
+                renderStudentDashboard();
+            }
+        }
+
+        function scrollToTask(dateStr) {
+            const taskEls = document.querySelectorAll(`.task-date-${dateStr}`);
+            if(taskEls.length > 0) {
+                taskEls[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                taskEls.forEach(el => {
+                    el.classList.remove('highlight-task');
+                    void el.offsetWidth;
+                    el.classList.add('highlight-task');
+                    setTimeout(() => { el.classList.remove('highlight-task'); }, 2500);
+                });
+            } else {
+                alert("No hay tareas registradas para esta fecha.");
+            }
+        }
+
+        function renderCalendar(isTeacher = false) {
+            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            let html = `
+                <div class="bg-white rounded-3xl p-4 shadow-sm border border-slate-100 mb-6 max-w-3xl mx-auto">
+                    <div class="flex justify-between items-center mb-4 px-2">
+                        <button onclick="changeMonth(-1, ${isTeacher})" class="text-brand-teal text-2xl hover:scale-110 transition-transform"><i class="fa-solid fa-chevron-left"></i></button>
+                        <h4 class="font-black text-brand-navy uppercase text-sm md:text-lg tracking-widest">${monthNames[month]} ${year}</h4>
+                        <button onclick="changeMonth(1, ${isTeacher})" class="text-brand-teal text-2xl hover:scale-110 transition-transform"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                    <div class="calendar-grid mb-1">
+                        ${['D','L','M','X','J','V','S'].map(d => `<div class="text-center text-xs font-black text-slate-300 uppercase">${d}</div>`).join('')}
+                    </div>
+                    <div class="calendar-grid">`;
+
+            for(let i = 0; i < firstDay; i++) html += `<div></div>`;
+            for(let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                
+                let hasEvent = false;
+                let allTasksSubmitted = true;
+                let foundTasks = 0;
+
+                for(let k in globalData.publicaciones) { 
+                    const pub = globalData.publicaciones[k];
+                    if(pub.fecha === dateStr) { 
+                        if(isTeacher || pub.cursoId === 'all' || pub.cursoId === currentUser.cursoId) {
+                            hasEvent = true; 
+                            foundTasks++;
+                            
+                            if(!isTeacher) {
+                                const miEntrega = globalData.entregas?.[k]?.[currentUser.id];
+                                if(!miEntrega || !miEntrega.fecha) {
+                                    allTasksSubmitted = false;
+                                }
+                            }
+                        }
+                    } 
+                }
+                
+                const isToday = new Date().toDateString() === new Date(year, month, d).toDateString();
+                
+                let eventIndicator = '';
+                if(hasEvent) {
+                    if(!isTeacher && foundTasks > 0 && allTasksSubmitted) {
+                        eventIndicator = `
+                            <div class="absolute -top-1 -right-1 bg-slate-400 text-white w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] shadow-md border-2 border-white z-10">
+                                <i class="fa-solid fa-check"></i>
+                            </div>`;
+                    } else {
+                        eventIndicator = `
+                            <div class="absolute -top-1 -right-1 bg-red-500 text-white w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] shadow-md border-2 border-white animate-bounce z-10">
+                                <i class="fa-solid fa-bell"></i>
+                            </div>`;
+                    }
+                }
+                
+                html += `<div ${hasEvent ? `onclick="scrollToTask('${dateStr}')"` : ''} 
+                              class="calendar-day text-base md:text-lg ${isToday ? 'bg-brand-teal text-white shadow-lg' : 'bg-slate-50 text-slate-600'} 
+                              ${hasEvent ? 'border-2 border-brand-yellow/50 bg-yellow-50/30 hover:bg-brand-yellow/20' : 'border-2 border-transparent hover:bg-slate-100'} transition-all">${d}${eventIndicator}</div>`;
+            }
+            return html + `</div></div>`;
+        }
+
+        function changeMonth(dir, isTeacher) {
+            currentMonth.setMonth(currentMonth.getMonth() + dir);
+            isTeacher ? renderTeacherDashboard() : renderStudentDashboard();
+        }
+
+        // --- DASHBOARD DOCENTE ORGANIZADO POR GRUPOS ---
+        function renderTeacherDashboard() {
+            setActiveNav('t-nav-1');
+            const main = document.getElementById('app-content');
+            let html = `<div class="max-w-7xl mx-auto w-full">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase italic tracking-tighter">Muro General</h3>
+                    <button onclick="modalPublicar()" class="bg-brand-teal text-white p-3 md:px-6 md:py-3 rounded-xl text-sm font-black shadow-lg hover:bg-teal-400 transition-colors">+ PUBLICAR</button>
+                </div>`;
+            
+            html += renderCalendar(true);
+
+            // Filtro por el mes seleccionado actual
+            const activeYear = currentMonth.getFullYear();
+            const activeMonth = String(currentMonth.getMonth() + 1).padStart(2, '0');
+            const activeMonthPrefix = `${activeYear}-${activeMonth}`;
+
+            // Agrupar publicaciones
+            const items = globalData.publicaciones || {};
+            const grouped = { 'all': [] };
+            for(let id in globalData.cursos) grouped[id] = [];
+            
+            Object.keys(items).reverse().forEach(k => {
+                const p = { ...items[k], id: k };
+                
+                // Mostrar solo tareas del mes visible en el calendario
+                if (p.fecha && p.fecha.startsWith(activeMonthPrefix)) {
+                    if (p.cursoId === 'all') {
+                        grouped['all'].push(p);
+                    } else if (grouped[p.cursoId]) {
+                        grouped[p.cursoId].push(p);
+                    } else {
+                        if (!grouped['deleted']) grouped['deleted'] = [];
+                        grouped['deleted'].push(p);
+                    }
+                }
+            });
+
+            // Función para renderizar los grupos
+            const renderGroup = (title, pubs) => {
+                if (pubs.length === 0) return '';
+                let gHtml = `
+                    <div class="mt-8 mb-4">
+                        <h4 class="font-black text-xl text-brand-navy uppercase border-b-4 border-brand-teal pb-1 inline-block"><i class="fa-solid fa-layer-group mr-2 text-brand-teal"></i> ${title}</h4>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">`;
+                
+                pubs.forEach(p => {
+                    const k = p.id;
+                    const entregas = globalData.entregas?.[k] || {};
+                    const countEntregas = Object.keys(entregas).length;
+                    const isEvaluable = p.categoria && p.categoria !== 'none';
+                    const showHora = p.hora ? ` a las ${p.hora}` : '';
+
+                    gHtml += `<div class="bg-white p-5 rounded-3xl shadow-sm border-l-8 ${isEvaluable ? 'border-brand-yellow' : 'border-brand-teal'} task-date-${p.fecha} relative hover:shadow-md transition-shadow flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start mb-3 border-b pb-3">
+                                <span class="text-xs font-black uppercase text-brand-teal bg-brand-teal/10 px-2 py-1 rounded w-max">Pub: ${p.fechaPublicado || 'N/A'}</span>
+                                <button onclick="eliminarRegistro('publicaciones/${k}')" class="text-slate-300 text-xl hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                            <h4 class="font-black text-brand-navy uppercase mt-1 text-xl">${p.titulo}</h4>
+                            <p class="text-sm text-slate-500 mt-2 line-clamp-3">${p.descripcion}</p>
+                            ${p.linkMaterial ? `<a href="${p.linkMaterial}" target="_blank" class="block mt-4 bg-brand-teal/10 hover:bg-brand-teal hover:text-white transition-colors text-brand-teal p-3 rounded-xl text-xs font-black uppercase text-center border border-brand-teal/20"><i class="fa-solid fa-link mr-2"></i> Ver Material de Apoyo</a>` : ''}
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-50 flex justify-between items-center">
+                            <span class="text-[11px] font-black text-brand-navy uppercase"><i class="fa-regular fa-clock mr-1"></i> Límite: ${p.fecha || '--'} ${showHora}</span>
+                            ${isEvaluable ? `<button onclick="verEntregas('${k}')" class="bg-brand-navy hover:bg-slate-800 transition-colors text-brand-yellow px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg">REVISAR (${countEntregas})</button>` : ''}
+                        </div>
+                    </div>`;
+                });
+                return gHtml + `</div>`;
+            };
+
+            html += renderGroup('TODOS LOS GRUPOS (AVISOS GENERALES)', grouped['all']);
+            for (let c in globalData.cursos) {
+                html += renderGroup(globalData.cursos[c].nombre, grouped[c]);
+            }
+            if (grouped['deleted'] && grouped['deleted'].length > 0) {
+                html += renderGroup('GRUPOS ELIMINADOS', grouped['deleted']);
+            }
+
+            main.innerHTML = html + `</div>`;
+        }
+
+        // --- FUNCIONES RESTANTES DE GRUPOS Y MATERIALES ---
+        function renderTeacherGrupos() {
+            setActiveNav('t-nav-7');
+            const main = document.getElementById('app-content');
+            let html = `<div class="max-w-7xl mx-auto w-full">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase italic">Grupos / Materias</h3>
+                    <button onclick="modalNuevoCurso()" class="bg-brand-teal hover:bg-teal-400 transition-colors text-white p-3 md:px-6 md:py-3 rounded-xl text-sm font-black shadow-lg">+ NUEVO GRUPO</button>
+                </div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">`;
+            
+            for(let id in globalData.cursos) {
+                const c = globalData.cursos[id];
+                html += `<div class="bg-white p-5 rounded-2xl shadow-sm flex justify-between items-center border border-slate-100 hover:shadow-md transition-shadow">
+                    <div>
+                        <p class="font-black text-brand-navy text-lg uppercase">${c.nombre}</p>
+                        <p class="text-[10px] font-bold text-brand-teal uppercase bg-brand-teal/10 inline-block px-2 py-1 rounded mt-1">${c.categoria || 'ADOLESCENTES'}</p>
+                    </div>
+                    <button onclick="eliminarRegistro('cursos/${id}')" class="text-slate-300 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash text-xl md:text-2xl"></i></button>
+                </div>`;
+            }
+            if(!globalData.cursos || Object.keys(globalData.cursos).length === 0) {
+                html += `<p class="col-span-full text-center text-slate-400 font-bold text-sm py-10">No hay grupos creados aún.</p>`;
+            }
+            main.innerHTML = html + `</div></div>`;
+        }
+
+        function modalNuevoCurso() {
+            openModal(`
+                <div class="p-6 md:p-8">
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Nuevo Grupo / Materia</h3>
+                    <div class="space-y-4">
+                        <input id="cur-nom" type="text" placeholder="NOMBRE DEL GRUPO (EJ: INTERMEDIATE 1)" class="w-full p-4 bg-slate-100 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors">
+                        <div>
+                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Categoría General (Tipo de Calificación):</label>
+                            <select id="cur-cat" class="w-full p-4 bg-slate-100 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal">
+                                <option value="ninos">Niños</option>
+                                <option value="adolescentes">Adolescentes</option>
+                                <option value="adultos">Adultos</option>
+                            </select>
+                        </div>
+                        <button onclick="saveCurso()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg mt-2 uppercase text-sm">Crear Grupo</button>
+                    </div>
+                </div>`, false);
+        }
+
+        async function saveCurso() {
+            const n = document.getElementById('cur-nom').value.trim().toUpperCase();
+            const cat = document.getElementById('cur-cat').value;
+            if(!n) return alert("Por favor ingresa un nombre para el grupo.");
+            await db.ref('cursos').push({ nombre: n, categoria: cat });
+            closeModal();
+            renderTeacherGrupos();
+        }
+
+        function renderTeacherMateriales() {
+            setActiveNav('t-nav-6');
+            const main = document.getElementById('app-content');
+            let ops = '<option value="all">TODOS LOS CURSOS</option>';
+            for(let key in globalData.cursos) ops += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
+            let html = `
+                <div class="max-w-7xl mx-auto w-full">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase italic tracking-tighter">Materiales</h3>
+                        <button onclick="modalNuevaCarpeta()" class="bg-brand-teal hover:bg-teal-400 transition-colors text-white p-3 md:px-6 md:py-3 rounded-xl text-sm font-black shadow-lg">+ CARPETA</button>
+                    </div>
+                    <select id="m-cur-filter" onchange="renderCarpetas(this.value)" class="w-full md:max-w-md p-4 bg-white rounded-2xl font-black text-brand-navy shadow-sm mb-6 outline-none cursor-pointer text-sm">${ops}</select>
+                    <div id="carpetas-container"></div>
+                </div>
+            `;
+            main.innerHTML = html;
+            renderCarpetas('all');
+        }
+
+        function renderCarpetas(cursoFiltro) {
+            const container = document.getElementById('carpetas-container');
+            if(!container) return;
+            let html = '<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">';
+            const carpetas = globalData.carpetas || {};
+            let hayCarpetas = false;
+
+            for(let cId in carpetas) {
+                const c = carpetas[cId];
+                if (cursoFiltro === 'all' || c.cursoId === 'all' || c.cursoId === cursoFiltro) {
+                    hayCarpetas = true;
+                    html += `
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-center mb-2 border-b pb-3">
+                            <div class="flex-1">
+                                <h4 class="font-black text-brand-navy uppercase flex items-center text-lg">
+                                    <i class="fa-solid fa-folder text-brand-yellow mr-2 text-2xl"></i>
+                                    <span class="truncate w-40 md:w-full">${c.nombre}</span>
+                                </h4>
+                                <span class="text-[10px] md:text-xs font-black bg-slate-100 px-2 py-1 rounded text-slate-500 mt-2 inline-block">${c.cursoId === 'all' ? 'VISIBILIDAD: TODOS' : (globalData.cursos[c.cursoId]?.nombre || 'Curso')}</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button onclick="modalNuevoMaterial('${cId}')" class="text-brand-teal hover:bg-brand-teal hover:text-white transition-colors text-xs font-bold bg-brand-teal/10 px-3 py-2 rounded-lg"><i class="fa-solid fa-plus mr-1"></i> LINK</button>
+                                <button onclick="eliminarRegistro('carpetas/${cId}')" class="text-slate-300 text-lg hover:text-red-500 transition-colors"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <div class="space-y-2 mt-3">
+                    `;
+                    const items = c.items || {};
+                    let hayItems = false;
+                    for(let iId in items) {
+                        hayItems = true;
+                        html += `
+                            <div class="flex justify-between items-center bg-slate-50 hover:bg-slate-100 transition-colors p-3 rounded-xl border border-transparent hover:border-slate-200">
+                                <a href="${items[iId].link}" target="_blank" class="text-sm font-bold text-brand-navy hover:text-brand-teal truncate flex-1"><i class="fa-solid fa-link mr-2"></i>${items[iId].nombre}</a>
+                                <button onclick="eliminarRegistro('carpetas/${cId}/items/${iId}')" class="text-slate-300 hover:text-red-500 ml-3 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+                            </div>
+                        `;
+                    }
+                    if(!hayItems) html += `<p class="text-xs text-slate-400 font-bold italic text-center py-4">Carpeta vacía</p>`;
+                    html += `</div></div>`;
+                }
+            }
+            if(!hayCarpetas) html += `<p class="col-span-full text-center text-slate-400 font-bold text-sm mt-10">No hay carpetas creadas.</p>`;
+            container.innerHTML = html + '</div>';
+        }
+
+        function modalNuevaCarpeta() {
+            let ops = '<option value="all">VISIBLE PARA TODOS</option>';
+            for(let key in globalData.cursos) ops += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
+            openModal(`
+                <div class="p-6 md:p-8">
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Nueva Carpeta</h3>
+                    <div class="space-y-4">
+                        <input id="c-nom" type="text" placeholder="EJ: GRAMMAR RESOURCES" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:bg-white focus:border-brand-teal transition-colors text-sm">
+                        <div>
+                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Selecciona el curso:</label>
+                            <select id="c-cur" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal">${ops}</select>
+                        </div>
+                        <button onclick="saveCarpeta()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest mt-2">Crear Carpeta</button>
+                    </div>
+                </div>
+            `, false);
+        }
+        
+        async function saveCarpeta() {
+            const nom = document.getElementById('c-nom').value.trim().toUpperCase();
+            const cur = document.getElementById('c-cur').value;
+            if(!nom) return alert("Ingresa un nombre para la carpeta");
+            await db.ref('carpetas').push({ nombre: nom, cursoId: cur });
+            closeModal(); renderTeacherMateriales();
+        }
+
+        function modalNuevoMaterial(carpetaId) {
+            openModal(`
+                <div class="p-6 md:p-8">
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Añadir Link</h3>
+                    <div class="space-y-4">
+                        <input id="m-nom" type="text" placeholder="TÍTULO DEL MATERIAL" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors text-sm">
+                        <div>
+                            <input id="m-link" type="url" placeholder="https://..." class="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none text-sm focus:border-brand-teal focus:bg-white transition-colors">
+                            <p class="text-[10px] font-bold text-slate-400 leading-tight mt-2 ml-2">Pega aquí el enlace a Google Drive, YouTube, un PDF online, etc.</p>
+                        </div>
+                        <button onclick="saveMaterial('${carpetaId}')" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest mt-2">Guardar Link</button>
+                    </div>
+                </div>
+            `, false);
+        }
+
+        async function saveMaterial(carpetaId) {
+            const nom = document.getElementById('m-nom').value.trim().toUpperCase();
+            const link = document.getElementById('m-link').value.trim();
+            if(!nom || !link) return alert("Completa el título y el enlace");
+            await db.ref(`carpetas/${carpetaId}/items`).push({ nombre: nom, link: link });
+            closeModal(); renderTeacherMateriales();
+        }
+
+        function renderStudentMateriales() {
+            setActiveNav('s-nav-4');
+            const main = document.getElementById('app-content');
+            let html = `<div class="max-w-7xl mx-auto w-full">
+                <h3 class="font-black text-2xl md:text-3xl text-brand-navy mb-6 uppercase italic">Material de Estudio</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">`;
+            const carpetas = globalData.carpetas || {};
+            let hasContent = false;
+            for(let cId in carpetas) {
+                const c = carpetas[cId];
+                if(c.cursoId === 'all' || c.cursoId === currentUser.cursoId) {
+                    hasContent = true;
+                    html += `
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                        <h4 class="font-black text-brand-navy uppercase mb-3 border-b pb-3 text-lg"><i class="fa-solid fa-folder-open text-brand-yellow mr-2"></i>${c.nombre}</h4>
+                        <div class="space-y-2">
+                    `;
+                    const items = c.items || {};
+                    let hayItems = false;
+                    for(let iId in items) {
+                        hayItems = true;
+                        html += `
+                            <a href="${items[iId].link}" target="_blank" class="block bg-slate-50 hover:bg-brand-teal/10 p-4 rounded-xl text-sm font-bold text-brand-navy hover:text-brand-teal transition-colors truncate border border-transparent hover:border-brand-teal/20">
+                                <i class="fa-solid fa-arrow-up-right-from-square mr-2 text-brand-teal"></i>${items[iId].nombre}
+                            </a>
+                        `;
+                    }
+                    if(!hayItems) html += `<p class="text-xs text-slate-400 font-bold italic py-3 text-center">La carpeta está vacía.</p>`;
+                    html += `</div></div>`;
+                }
+            }
+            if(!hasContent) html += `<p class="col-span-full text-center text-slate-400 font-bold text-sm mt-10">Tu docente no ha subido materiales aún.</p>`;
+            main.innerHTML = html + `</div></div>`;
+        }
+
+        function updateCatSelect() {
+            const curId = document.getElementById('p-cur').value;
+            const catSelect = document.getElementById('p-cat');
+            if(!catSelect) return;
+            
+            let html = '<option value="none_0">NO EVALUABLE (Aviso)</option>';
+            if(curId !== 'all') {
+                const cat = globalData.cursos[curId]?.categoria || 'adolescentes';
+                if(cat === 'ninos') {
+                    html += '<option value="tar_25">TAREAS Y PRÁCTICAS (25 PTS)</option>';
+                    html += '<option value="fee_5">FIRST EXAM ESCRITO (5 PTS)</option>';
+                    html += '<option value="feo_10">FIRST EXAM ORAL (10 PTS)</option>';
+                    html += '<option value="see_5">SECOND EXAM ESCRITO (5 PTS)</option>';
+                    html += '<option value="seo_10">SECOND EXAM ORAL (10 PTS)</option>';
+                    html += '<option value="fe_10">FINAL ESCRITO (10 PTS)</option>';
+                    html += '<option value="fo_20">FINAL ORAL (20 PTS)</option>';
+                } else if(cat === 'adolescentes') {
+                    html += '<option value="tar_20">TAREAS Y PRÁCTICAS (20 PTS)</option>';
+                    html += '<option value="me_10">MIDTERM ESCRITO (10 PTS)</option>';
+                    html += '<option value="mo_20">MIDTERM ORAL (20 PTS)</option>';
+                    html += '<option value="fe_10">FINAL ESCRITO (10 PTS)</option>';
+                    html += '<option value="fo_25">FINAL ORAL (25 PTS)</option>';
+                } else if(cat === 'adultos') {
+                    html += '<option value="tar_15">TAREAS Y PRÁCTICAS (15 PTS)</option>';
+                    html += '<option value="me_10">MIDTERM ESCRITO (10 PTS)</option>';
+                    html += '<option value="mo_20">MIDTERM ORAL (20 PTS)</option>';
+                    html += '<option value="fe_15">FINAL ESCRITO (15 PTS)</option>';
+                    html += '<option value="fo_30">FINAL ORAL (30 PTS)</option>';
+                }
+            }
+            catSelect.innerHTML = html;
+        }
+
+        function modalPublicar() {
+            let options = '<option value="all">TODOS LOS CURSOS</option>';
+            for(let key in globalData.cursos) options += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
+            openModal(`
+                <div class="p-6 md:p-8">
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Crear Actividad</h3>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <select id="p-cur" onchange="updateCatSelect()" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase focus:border-brand-teal transition-colors cursor-pointer">${options}</select>
+                            <select id="p-cat" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase text-brand-teal focus:border-brand-teal transition-colors cursor-pointer">
+                                <option value="none_0">NO EVALUABLE (Aviso)</option>
+                            </select>
+                        </div>
+                        <input id="p-tit" type="text" placeholder="TÍTULO DE LA TAREA" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors">
+                        <textarea id="p-desc" placeholder="INSTRUCCIONES..." class="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none h-28 text-sm focus:border-brand-teal focus:bg-white transition-colors"></textarea>
+                        
+                        <div class="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200 hover:border-brand-teal transition-colors">
+                            <label class="text-[10px] font-black text-slate-400 uppercase block mb-2">Link de Material / Video (Opcional):</label>
+                            <input id="p-link-material" type="url" placeholder="https://youtube.com/... o Drive" class="w-full bg-transparent font-bold outline-none text-sm text-brand-teal">
+                        </div>
+                        
+                        <div class="bg-slate-50 p-4 rounded-2xl flex flex-col md:flex-row justify-between md:items-center border border-slate-100 gap-3">
+                            <label class="text-sm font-black text-slate-400 uppercase">Límite</label>
+                            <div class="flex flex-1 md:flex-none gap-2">
+                                <input id="p-fecha" type="date" class="w-full md:w-auto bg-white p-3 rounded-xl font-black outline-none text-brand-teal text-sm cursor-pointer shadow-sm border border-slate-200">
+                                <input id="p-hora" type="time" class="w-full md:w-auto bg-white p-3 rounded-xl font-black outline-none text-brand-teal text-sm cursor-pointer shadow-sm border border-slate-200">
+                            </div>
+                        </div>
+                        <button onclick="savePublicacion()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest mt-2">Publicar</button>
+                    </div>
+                </div>`, false);
+            updateCatSelect();
+        }
+
+        async function savePublicacion() {
+            const catVal = document.getElementById('p-cat').value.split('_');
+            const fechaActual = new Date();
+            const fechaPub = `${String(fechaActual.getDate()).padStart(2, '0')}/${String(fechaActual.getMonth() + 1).padStart(2, '0')}/${fechaActual.getFullYear()}`;
+            
+            const data = {
+                tipo: catVal[0] === 'none' ? 'Aviso' : 'Tarea',
+                categoria: catVal[0],
+                maxPts: Number(catVal[1]),
+                cursoId: document.getElementById('p-cur').value,
+                titulo: document.getElementById('p-tit').value.trim().toUpperCase(),
+                descripcion: document.getElementById('p-desc').value.trim(),
+                linkMaterial: document.getElementById('p-link-material').value.trim(),
+                fechaPublicado: fechaPub,
+                fecha: document.getElementById('p-fecha').value,
+                hora: document.getElementById('p-hora').value || "23:59" 
+            };
+            if(!data.titulo || !data.fecha) return alert("Completa el título y la fecha límite.");
+            await db.ref('publicaciones').push(data);
+            closeModal(); renderTeacherDashboard();
+        }
+
+        function renderStudentDashboard() {
+            setActiveNav('s-nav-1');
+            const main = document.getElementById('app-content');
+            let html = `<div class="max-w-7xl mx-auto w-full">
+                <h3 class="font-black text-2xl md:text-3xl text-brand-navy mb-4 uppercase italic">Actividades</h3>`;
+            html += renderCalendar(false);
+            html += `<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">`;
+            const items = globalData.publicaciones || {};
+            const ahora = new Date();
+
+            // Filtro por mes actual seleccionado en el calendario
+            const activeYear = currentMonth.getFullYear();
+            const activeMonth = String(currentMonth.getMonth() + 1).padStart(2, '0');
+            const activeMonthPrefix = `${activeYear}-${activeMonth}`;
+            
+            Object.keys(items).reverse().forEach(k => {
+                const p = items[k];
+                
+                // Mostrar solo tareas del mes visible
+                if(p.fecha && p.fecha.startsWith(activeMonthPrefix) && (p.cursoId === "all" || p.cursoId === currentUser.cursoId)) {
+                    const miEntrega = globalData.entregas?.[k]?.[currentUser.id];
+                    const isEvaluable = p.categoria && p.categoria !== 'none';
+                    
+                    let isPastDeadline = false;
+                    if(p.fecha) {
+                        const limiteStr = p.fecha + 'T' + (p.hora || '23:59') + ':00';
+                        const limiteDate = new Date(limiteStr);
+                        if(ahora > limiteDate) {
+                            isPastDeadline = true;
+                        }
+                    }
+
+                    const showHora = p.hora ? ` a las ${p.hora}` : '';
+                    
+                    let buttonHtml = '';
+                    if (isEvaluable) {
+                        if (miEntrega) {
+                            if (miEntrega.nota !== undefined && miEntrega.nota !== "") {
+                                buttonHtml = `<button onclick="modalSubirTarea('${k}')" class="w-full bg-brand-teal/10 text-brand-teal border border-brand-teal/30 hover:bg-brand-teal/20 py-3 md:py-4 rounded-2xl font-black text-xs md:text-sm uppercase shadow-sm transition-colors"><i class="fa-solid fa-star mr-1"></i> CALIFICADO: ${miEntrega.nota} / ${p.maxPts || '-'} PTS</button>`;
+                            } else {
+                                buttonHtml = `<button onclick="modalSubirTarea('${k}')" class="w-full bg-green-500 hover:bg-green-400 text-white py-3 md:py-4 rounded-2xl font-black text-xs md:text-sm uppercase shadow-sm transition-colors"><i class="fa-solid fa-eye mr-1"></i> VER TRABAJO ENTREGADO</button>`;
+                            }
+                        } else {
+                            if (isPastDeadline) {
+                                buttonHtml = `<button disabled class="w-full bg-slate-300 text-slate-500 py-3 md:py-4 rounded-2xl font-black text-xs md:text-sm uppercase shadow-inner cursor-not-allowed border border-slate-300"><i class="fa-solid fa-lock mr-1"></i> TIEMPO AGOTADO</button>`;
+                            } else {
+                                buttonHtml = `<button onclick="modalSubirTarea('${k}')" class="w-full bg-brand-navy hover:bg-slate-800 text-white py-3 md:py-4 rounded-2xl font-black text-xs md:text-sm uppercase shadow-sm transition-colors"><i class="fa-solid fa-upload mr-1"></i> ENTREGAR TRABAJO</button>`;
+                            }
+                        }
+                    }
+                    
+                    html += `<div class="bg-white p-5 rounded-3xl shadow-sm border-l-8 ${isEvaluable ? 'border-brand-yellow' : 'border-brand-teal'} task-date-${p.fecha} relative hover:shadow-md transition-shadow flex flex-col justify-between">
+                        
+                        <div>
+                            <div class="flex justify-between items-start mb-3 border-b pb-3">
+                                <span class="text-[10px] md:text-xs font-black uppercase text-brand-teal bg-brand-teal/10 px-2 py-1.5 rounded">Pub: ${p.fechaPublicado || 'N/A'}</span>
+                                <span class="text-[10px] md:text-xs font-black uppercase ${isPastDeadline && !miEntrega ? 'text-slate-500 bg-slate-100 border-slate-300' : 'text-red-500 bg-red-50 border-red-100'} px-2 py-1.5 rounded border"><i class="fa-regular fa-clock"></i> Límite: ${p.fecha}${showHora}</span>
+                            </div>
+
+                            <h4 class="font-black text-brand-navy uppercase text-xl">${p.titulo}</h4>
+                            <p class="text-sm text-slate-600 mt-2 mb-4 line-clamp-4">${p.descripcion}</p>
+                        </div>
+                        
+                        <div>
+                            ${p.linkMaterial ? `<a href="${p.linkMaterial}" target="_blank" class="block mb-4 bg-brand-teal hover:bg-teal-400 text-white p-3 rounded-2xl text-xs font-black uppercase text-center shadow-md animate-pulse transition-colors"><i class="fa-solid fa-circle-play mr-2"></i> Ver Video / Material</a>` : ''}
+
+                            ${buttonHtml}
+                        </div>
+                    </div>`;
+                }
+            });
+            main.innerHTML = html + `</div></div>`;
+        }
+
+        // --- VISUALIZACIÓN DE TAREAS Y CORRECCIONES PARA EL ESTUDIANTE ---
+        function modalSubirTarea(pubId) {
+            const pub = globalData.publicaciones[pubId];
+            const miEntrega = globalData.entregas?.[pubId]?.[currentUser.id];
+
+            if (miEntrega && miEntrega.fecha) {
+                openModal(`
+                    <div class="flex flex-col h-full overflow-hidden p-6 md:p-8 pt-10">
+                        <div class="flex-shrink-0">
+                            <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-2 italic">Trabajo Entregado</h3>
+                            <p class="text-sm md:text-base font-black text-brand-teal uppercase mb-5">${pub.titulo}</p>
+                        </div>
+                        
+                        <div class="space-y-5 flex-1 overflow-y-auto pr-2 pb-4">
+                            ${miEntrega.archivo ? `
+                                <div>
+                                    <label class="text-[11px] font-black text-slate-400 uppercase ml-2 mb-2 block">Enlace Adjunto:</label>
+                                    <a href="${miEntrega.archivo}" target="_blank" class="block w-full p-4 rounded-2xl bg-brand-teal/10 text-brand-teal font-black text-sm border border-brand-teal/20 truncate hover:bg-brand-teal hover:text-white transition-colors"><i class="fa-solid fa-link mr-2"></i> Abrir Enlace Adjunto</a>
+                                </div>` : ''
+                            }
+                            
+                            ${miEntrega.correccion ? `
+                                <div class="flex flex-col">
+                                    <label class="text-xs md:text-sm font-black text-blue-800 uppercase ml-2 mb-2 block"><i class="fa-solid fa-chalkboard-user mr-1"></i> Documento Corregido por el Docente:</label>
+                                    <div class="w-full p-6 md:px-10 py-8 rounded-2xl bg-white text-base md:text-lg font-medium border-2 border-blue-800/50 shadow-inner overflow-x-auto" style="line-height: 1.6;">${miEntrega.correccion}</div>
+                                </div>` 
+                            : (miEntrega.respuesta ? `
+                                <div class="flex flex-col">
+                                    <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 mb-2 block">Tu Respuesta Original:</label>
+                                    <div class="w-full p-6 md:px-10 py-8 rounded-2xl bg-white text-base md:text-lg font-medium border-2 border-slate-200 shadow-inner overflow-x-auto" style="line-height: 1.6;">${miEntrega.respuesta}</div>
+                                </div>` : '')
+                            }
+                            
+                            <div class="text-center p-4 bg-green-50 rounded-2xl border border-green-200 text-green-600 font-bold text-sm uppercase shadow-sm mt-4">
+                                <i class="fa-solid fa-check-circle mr-1 text-lg"></i> Entregado el ${miEntrega.fecha}
+                            </div>
+                        </div>
+                    </div>
+                `, true); 
+            } else {
+                openModal(`
+                    <div class="flex flex-col h-full p-6 md:p-8 pt-10">
+                        <h3 class="font-black text-brand-navy text-xl md:text-3xl uppercase mb-2 italic">Entregar Trabajo</h3>
+                        <p class="text-xs md:text-sm font-black text-brand-teal uppercase mb-4">${pub.titulo}</p>
+                        
+                        <div class="space-y-4 flex-1 flex flex-col pb-2">
+                            <div>
+                                <label class="text-[10px] md:text-xs font-black text-slate-400 uppercase ml-2 mb-2 block">1. Link de la tarea (Drive, PDF, YouTube):</label>
+                                <input id="e-link" type="url" placeholder="https://drive.google.com/..." class="w-full p-4 rounded-2xl bg-white text-sm font-black border-2 border-slate-200 outline-none focus:border-brand-teal shadow-sm transition-colors">
+                            </div>
+
+                            <div class="flex-1 flex flex-col min-h-0">
+                                <label class="text-[10px] md:text-xs font-black text-slate-400 uppercase ml-2 mb-2 block">2. Escribe tu tarea (Hoja Digital):</label>
+                                
+                                <div class="flex flex-wrap items-center gap-2 bg-slate-200 p-3 rounded-t-2xl border border-slate-300">
+                                    <button type="button" onclick="document.execCommand('bold', false, null)" class="px-4 py-2 bg-white rounded-lg font-black shadow hover:bg-slate-100 text-brand-navy text-sm md:text-base border border-slate-300">B</button>
+                                    <button type="button" onclick="document.execCommand('italic', false, null)" class="px-4 py-2 bg-white rounded-lg font-black shadow hover:bg-slate-100 text-brand-navy italic text-sm md:text-base border border-slate-300">I</button>
+                                    <button type="button" onclick="document.execCommand('underline', false, null)" class="px-4 py-2 bg-white rounded-lg font-black shadow hover:bg-slate-100 text-brand-navy underline text-sm md:text-base border border-slate-300">U</button>
+                                    
+                                    <div class="w-px h-8 bg-slate-400 mx-2"></div>
+                                    
+                                    <button type="button" onclick="document.execCommand('foreColor', false, 'black')" class="w-8 h-8 bg-black rounded-full shadow border-2 border-white hover:scale-110 transition-transform"></button>
+                                    <button type="button" onclick="document.execCommand('foreColor', false, '#ef4444')" class="w-8 h-8 bg-red-500 rounded-full shadow border-2 border-white hover:scale-110 transition-transform"></button>
+                                    <button type="button" onclick="document.execCommand('foreColor', false, '#3b82f6')" class="w-8 h-8 bg-blue-500 rounded-full shadow border-2 border-white hover:scale-110 transition-transform"></button>
+                                    <button type="button" onclick="document.execCommand('foreColor', false, '#22c55e')" class="w-8 h-8 bg-green-500 rounded-full shadow border-2 border-white hover:scale-110 transition-transform"></button>
+                                    <button type="button" onclick="document.execCommand('foreColor', false, '#fbc02d')" class="w-8 h-8 bg-brand-yellow rounded-full shadow border-2 border-white hover:scale-110 transition-transform"></button>
+                                </div>
+                                
+                                <div id="e-res-editor" contenteditable="true" data-placeholder="Comienza a escribir tu tarea aquí..." class="w-full flex-1 p-6 bg-white min-h-[35vh] md:min-h-[45vh] text-base md:text-lg font-medium outline-none shadow-inner transition-colors border-x border-b border-slate-300 focus:border-brand-teal rounded-b-2xl overflow-y-auto" style="line-height: 1.6;"></div>
+                            </div>
+                            
+                            <button id="btn-enviar-tarea" onclick="enviarTarea('${pubId}')" class="w-full bg-brand-navy hover:bg-slate-800 text-white py-4 md:py-5 rounded-2xl font-black shadow-xl uppercase text-sm md:text-base tracking-widest transition-transform btn-active mt-2">Confirmar Envío</button>
+                            <p class="text-[10px] md:text-xs text-center text-slate-400 font-bold uppercase italic mt-1">La entrega es definitiva y no podrás editarla luego.</p>
+                        </div>
+                    </div>`, true); 
+            }
+        }
+
+        async function enviarTarea(pubId) {
+            const linkInput = document.getElementById('e-link').value.trim();
+            const resElement = document.getElementById('e-res-editor');
+            let res = resElement ? resElement.innerHTML.trim() : '';
+            if (res === '<br>') res = ''; 
+
+            const btnEnviar = document.getElementById('btn-enviar-tarea');
+            
+            if (!linkInput && !res) {
+                alert("Debes pegar un link o escribir tu tarea en la hoja virtual.");
+                return;
+            }
+
+            btnEnviar.disabled = true;
+            btnEnviar.classList.add('opacity-50');
+
+            try {
+                await db.ref(`entregas/${pubId}/${currentUser.id}`).update({
+                    alumno: currentUser.nombre,
+                    respuesta: res,
+                    archivo: linkInput || '',
+                    fecha: new Date().toLocaleString()
+                });
+                alert("¡Trabajo enviado exitosamente!"); 
+                closeModal(); 
+                renderStudentDashboard();
+            } catch (error) {
+                alert("Error al enviar: " + error.message);
+                btnEnviar.disabled = false;
+                btnEnviar.classList.remove('opacity-50');
+            }
+        }
+
+        function calcPromedioCategoria(estId, curId, catKey) {
+            let sum = 0, count = 0;
+            for(let pId in globalData.publicaciones) {
+                let p = globalData.publicaciones[pId];
+                if(p.categoria === catKey && (p.cursoId === curId || p.cursoId === 'all')) {
+                    count++;
+                    const nota = globalData.entregas?.[pId]?.[estId]?.nota;
+                    if(nota !== undefined && nota !== '') sum += Number(nota);
+                }
+            }
+            return count > 0 ? (sum / count).toFixed(1) : null;
+        }
+
+        function verEntregas(pubId) {
+            const pub = globalData.publicaciones[pubId];
+            const entregas = globalData.entregas?.[pubId] || {};
+            
+            let html = `<div class="p-6 md:p-8 pt-10 h-full flex flex-col">
+                        <div class="flex-shrink-0">
+                            <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Revisión de Tareas</h3>
+                            <p class="text-brand-teal font-black text-sm uppercase mb-6">${pub.titulo}</p>
+                        </div>
+                        <div class="space-y-4 overflow-y-auto pr-2 pb-4 flex-1">`;
+            
+            if(Object.keys(entregas).length === 0) {
+                html += `<p class="text-sm text-slate-400 font-bold text-center py-6">Nadie ha entregado aún.</p>`;
+            } else {
+                for(let estudianteId in entregas) {
+                    const ent = entregas[estudianteId];
+                    const isGraded = ent.nota !== undefined && ent.nota !== "";
+                    html += `
+                    <div onclick="verEntregaDetalle('${pubId}', '${estudianteId}')" class="bg-slate-50 hover:bg-slate-100 cursor-pointer p-5 rounded-2xl border border-slate-200 flex justify-between items-center transition-colors shadow-sm">
+                        <div>
+                            <p class="font-black text-brand-navy text-base md:text-lg uppercase">${ent.alumno}</p>
+                            <p class="text-[10px] font-bold text-slate-500 mt-1"><i class="fa-regular fa-clock mr-1"></i> ${ent.fecha || 'Sin fecha'}</p>
+                        </div>
+                        <div class="${isGraded ? 'bg-brand-teal text-white' : 'bg-brand-yellow text-brand-navy'} px-4 py-2 rounded-xl text-[11px] md:text-xs font-black uppercase shadow-sm flex items-center">
+                            ${isGraded ? `<i class="fa-solid fa-star mr-1"></i> NOTA: ${ent.nota}` : '<i class="fa-solid fa-pen mr-1"></i> POR REVISAR'} <i class="fa-solid fa-chevron-right ml-2"></i>
+                        </div>
+                    </div>`;
+                }
+            }
+            openModal(html + `</div></div>`, false); 
+        }
+
+        // --- REVISIÓN EN PANTALLA COMPLETA CON EDITOR MEJORADO ---
+        function verEntregaDetalle(pubId, estId) {
+            const pub = globalData.publicaciones[pubId];
+            const ent = globalData.entregas[pubId][estId];
+            const maxPts = pub.maxPts || 100;
+            
+            // Si el docente ya guardó una corrección, cargarla. Si no, cargar la respuesta original del alumno.
+            const correccionPrevia = ent.correccion || ent.respuesta || '';
+
+            let html = `
+                <div class="flex flex-col h-full overflow-hidden">
+                    
+                    <div class="flex-shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 md:p-6 bg-slate-50 border-b border-slate-200 shadow-sm z-20 pt-10 md:pt-6">
+                        <div>
+                            <button onclick="verEntregas('${pubId}')" class="text-slate-500 hover:text-brand-navy mb-2 font-black text-xs md:text-sm uppercase transition-colors text-left w-max bg-white shadow-sm hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200"><i class="fa-solid fa-arrow-left mr-2"></i> Volver a la Lista</button>
+                            <h3 class="font-black text-brand-navy text-lg md:text-2xl uppercase mt-1 italic">Revisión: ${ent.alumno}</h3>
+                            <p class="text-brand-teal font-black text-xs md:text-sm uppercase">${pub.titulo}</p>
+                        </div>
+                        
+                        <div class="flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
+                            <div class="flex flex-col items-center">
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Nota / ${maxPts}</label>
+                                <input type="number" max="${maxPts}" value="${ent.nota || ''}" id="nota-detalle-${pubId}-${estId}" class="w-16 md:w-20 p-1 font-black text-xl text-center border-b-2 border-slate-200 focus:border-brand-teal outline-none transition-colors bg-transparent text-brand-navy">
+                            </div>
+                            <button onclick="guardarNotaDetalle('${pubId}', '${estId}')" class="bg-brand-navy hover:bg-slate-800 transition-colors text-brand-yellow px-4 md:px-6 py-2 md:py-3 rounded-xl text-xs md:text-sm font-black uppercase tracking-widest shadow-md">Guardar</button>
+                        </div>
+                    </div>
+
+                    ${ent.archivo ? `
+                        <div class="flex-shrink-0 p-4 bg-brand-teal/5 border-b border-brand-teal/20">
+                            <a href="${ent.archivo}" target="_blank" class="block w-max mx-auto bg-white hover:bg-brand-teal hover:text-white transition-colors border border-brand-teal text-brand-teal px-6 py-2 rounded-full text-xs font-black uppercase shadow-sm flex items-center justify-center"><i class="fa-solid fa-link mr-2"></i> Abrir Archivo Adjunto del Estudiante</a>
+                        </div>
+                    ` : ''}
+
+                    <div class="flex-1 flex flex-col min-h-0 bg-slate-200 overflow-hidden relative">
+                        
+                        <div class="flex flex-wrap items-center gap-2 bg-white p-2 md:p-3 shadow-sm z-10 overflow-x-auto hide-scroll justify-center border-b border-slate-300">
+                            
+                            <button type="button" onclick="document.execCommand('bold', false, null)" class="w-8 h-8 md:w-auto md:px-3 md:py-1 bg-slate-50 rounded font-black shadow-sm hover:bg-slate-200 text-sm border border-slate-300 flex items-center justify-center">B</button>
+                            <button type="button" onclick="document.execCommand('italic', false, null)" class="w-8 h-8 md:w-auto md:px-3 md:py-1 bg-slate-50 rounded font-black shadow-sm hover:bg-slate-200 italic text-sm border border-slate-300 flex items-center justify-center">I</button>
+                            <button type="button" onclick="document.execCommand('underline', false, null)" class="w-8 h-8 md:w-auto md:px-3 md:py-1 bg-slate-50 rounded font-black shadow-sm hover:bg-slate-200 underline text-sm border border-slate-300 flex items-center justify-center">U</button>
+
+                            <div class="w-px h-6 bg-slate-300 mx-1"></div>
+
+                            <button type="button" onclick="document.execCommand('foreColor', false, 'black')" class="w-6 h-6 bg-black rounded-full shadow-sm border border-slate-300 hover:scale-110 transition-transform"></button>
+                            <button type="button" onclick="document.execCommand('foreColor', false, '#ef4444')" class="w-6 h-6 bg-red-500 rounded-full shadow-sm border border-slate-300 hover:scale-110 transition-transform"></button>
+                            <button type="button" onclick="document.execCommand('foreColor', false, '#22c55e')" class="w-6 h-6 bg-green-500 rounded-full shadow-sm border border-slate-300 hover:scale-110 transition-transform"></button>
+                            <button type="button" onclick="document.execCommand('foreColor', false, '#3b82f6')" class="w-6 h-6 bg-blue-500 rounded-full shadow-sm border border-slate-300 hover:scale-110 transition-transform"></button>
+
+                            <div class="w-px h-6 bg-slate-300 mx-1"></div>
+                            
+                            <span class="text-[10px] font-black text-slate-400 uppercase mr-1 hidden md:inline">Resaltar:</span>
+                            <button type="button" onclick="document.execCommand('backColor', false, '#fef08a')" class="w-6 h-6 bg-yellow-200 rounded shadow-sm border border-slate-300 hover:scale-110 transition-transform" title="Resaltar Amarillo"></button>
+                            <button type="button" onclick="document.execCommand('backColor', false, '#fecaca')" class="w-6 h-6 bg-red-200 rounded shadow-sm border border-slate-300 hover:scale-110 transition-transform" title="Resaltar Rojo"></button>
+                            <button type="button" onclick="document.execCommand('backColor', false, '#bbf7d0')" class="w-6 h-6 bg-green-200 rounded shadow-sm border border-slate-300 hover:scale-110 transition-transform" title="Resaltar Verde"></button>
+                            <button type="button" onclick="document.execCommand('backColor', false, 'transparent')" class="w-6 h-6 bg-white rounded shadow-sm border border-slate-300 hover:scale-110 transition-transform flex items-center justify-center text-[10px]" title="Quitar Resaltado"><i class="fa-solid fa-eraser text-slate-400"></i></button>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto p-2 md:p-8 flex justify-center">
+                            <div id="correccion-editor" contenteditable="true" data-placeholder="${!ent.archivo && !ent.respuesta ? 'El estudiante no adjuntó hoja virtual. Escribe aquí tus comentarios...' : 'Escribe o corrige directamente sobre el documento...'}" class="w-full max-w-4xl bg-white p-6 md:px-12 py-10 min-h-full text-base md:text-lg font-medium outline-none shadow-lg transition-colors focus:ring-4 focus:ring-brand-teal/20" style="line-height: 1.6;">${correccionPrevia}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modal-content').innerHTML = html;
+        }
+
+        async function guardarNotaDetalle(pubId, estId) {
+            const nota = document.getElementById(`nota-detalle-${pubId}-${estId}`).value;
+            let correccion = document.getElementById('correccion-editor').innerHTML.trim();
+            if (correccion === '<br>') correccion = '';
+
+            await db.ref(`entregas/${pubId}/${estId}`).update({
+                nota: nota,
+                correccion: correccion
+            });
+            alert("Revisión guardada correctamente");
+            verEntregas(pubId); 
+        }
+
+        // --- NOTAS Y BOLETINES ---
+        function renderTeacherGradesControl() {
+            setActiveNav('t-nav-4');
+            const main = document.getElementById('app-content');
+            let ops = '<option value="">SELECCIONA UN CURSO...</option>';
+            for(let key in globalData.cursos) ops += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
+            main.innerHTML = `<div class="max-w-7xl mx-auto w-full">
+                <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase mb-6 italic">Boletín</h3>
+                <select id="g-cur" onchange="renderGradesTable(this.value)" class="w-full md:max-w-md p-4 bg-white rounded-2xl font-black text-brand-navy shadow-sm mb-6 outline-none cursor-pointer focus:border-brand-teal text-sm">${ops}</select>
+                <div id="grades-table-container"></div>
+            </div>`;
+        }
+
+        function renderGradesTable(cId) {
+            if(!cId) return;
+            const container = document.getElementById('grades-table-container');
+            let html = `<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">`;
+            let hasStudents = false;
+            const cat = globalData.cursos[cId]?.categoria || 'adolescentes';
+
+            for(let eId in globalData.estudiantes) {
+                const e = globalData.estudiantes[eId];
+                if(e.cursoId === cId) {
+                    hasStudents = true;
+                    const n = e.notas || {};
+                    const asi = Number(n.asi || 0), par = Number(n.par || 0), rec = Number(n.rec || 0);
+                    const tar = calcPromedioCategoria(eId, cId, 'tar') !== null ? Number(calcPromedioCategoria(eId, cId, 'tar')) : Number(n.tar || 0);
+                    
+                    let me=0, mo=0, fe=0, fo=0, fee=0, feo=0, see=0, seo=0;
+                    let sum = 0;
+                    let inputsHtml = '';
+
+                    if(cat === 'ninos') {
+                        fee = calcPromedioCategoria(eId, cId, 'fee') !== null ? Number(calcPromedioCategoria(eId, cId, 'fee')) : Number(n.fee || 0);
+                        feo = calcPromedioCategoria(eId, cId, 'feo') !== null ? Number(calcPromedioCategoria(eId, cId, 'feo')) : Number(n.feo || 0);
+                        see = calcPromedioCategoria(eId, cId, 'see') !== null ? Number(calcPromedioCategoria(eId, cId, 'see')) : Number(n.see || 0);
+                        seo = calcPromedioCategoria(eId, cId, 'seo') !== null ? Number(calcPromedioCategoria(eId, cId, 'seo')) : Number(n.seo || 0);
+                        fe = calcPromedioCategoria(eId, cId, 'fe') !== null ? Number(calcPromedioCategoria(eId, cId, 'fe')) : Number(n.fe || 0);
+                        fo = calcPromedioCategoria(eId, cId, 'fo') !== null ? Number(calcPromedioCategoria(eId, cId, 'fo')) : Number(n.fo || 0);
+                        sum = asi + par + tar + fee + feo + see + seo + fe + fo;
+                        inputsHtml = `
+                        <div class="grid grid-cols-4 gap-2 md:gap-3 mb-3">
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">ASI(5)</p><input onchange="updateNote('${eId}', 'asi', this.value)" type="number" value="${asi}" class="w-full text-center p-2 rounded-xl bg-slate-50 font-black text-sm md:text-base border focus:border-brand-teal outline-none transition-colors"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">PAR(10)</p><input onchange="updateNote('${eId}', 'par', this.value)" type="number" value="${par}" class="w-full text-center p-2 rounded-xl bg-slate-50 font-black text-sm md:text-base border focus:border-brand-teal outline-none transition-colors"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">TAR(25)</p><input readonly value="${tar}" class="w-full text-center p-2 rounded-xl bg-brand-teal/10 text-brand-teal font-black text-sm md:text-base border border-brand-teal/20 cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">REC(10)</p><input onchange="updateNote('${eId}', 'rec', this.value)" type="number" value="${rec}" class="w-full text-center p-2 rounded-xl bg-yellow-50 font-black text-sm md:text-base border border-yellow-200 text-brand-yellow focus:border-brand-yellow outline-none transition-colors"></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                            <div class="text-center"><p class="text-[9px] font-black uppercase mb-1">1E.ESC(5)</p><input readonly value="${fee}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] font-black uppercase mb-1">1E.ORL(10)</p><input readonly value="${feo}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] font-black uppercase mb-1">2E.ESC(5)</p><input readonly value="${see}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] font-black uppercase mb-1">2E.ORL(10)</p><input readonly value="${seo}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] font-black uppercase mb-1">F.ESC(10)</p><input readonly value="${fe}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] font-black uppercase mb-1">F.ORL(20)</p><input readonly value="${fo}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                        </div>`;
+                    } else if(cat === 'adolescentes') {
+                        me = calcPromedioCategoria(eId, cId, 'me') !== null ? Number(calcPromedioCategoria(eId, cId, 'me')) : Number(n.me || 0);
+                        mo = calcPromedioCategoria(eId, cId, 'mo') !== null ? Number(calcPromedioCategoria(eId, cId, 'mo')) : Number(n.mo || 0);
+                        fe = calcPromedioCategoria(eId, cId, 'fe') !== null ? Number(calcPromedioCategoria(eId, cId, 'fe')) : Number(n.fe || 0);
+                        fo = calcPromedioCategoria(eId, cId, 'fo') !== null ? Number(calcPromedioCategoria(eId, cId, 'fo')) : Number(n.fo || 0);
+                        sum = asi + par + tar + me + mo + fe + fo;
+                        inputsHtml = `
+                        <div class="grid grid-cols-4 gap-2 md:gap-3 mb-3">
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">ASI(5)</p><input onchange="updateNote('${eId}', 'asi', this.value)" type="number" value="${asi}" class="w-full text-center p-2 rounded-xl bg-slate-50 font-black text-sm md:text-base border focus:border-brand-teal outline-none transition-colors"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">PAR(10)</p><input onchange="updateNote('${eId}', 'par', this.value)" type="number" value="${par}" class="w-full text-center p-2 rounded-xl bg-slate-50 font-black text-sm md:text-base border focus:border-brand-teal outline-none transition-colors"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">TAR(20)</p><input readonly value="${tar}" class="w-full text-center p-2 rounded-xl bg-brand-teal/10 text-brand-teal font-black text-sm md:text-base border border-brand-teal/20 cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">REC(10)</p><input onchange="updateNote('${eId}', 'rec', this.value)" type="number" value="${rec}" class="w-full text-center p-2 rounded-xl bg-yellow-50 font-black text-sm md:text-base border border-yellow-200 text-brand-yellow focus:border-brand-yellow outline-none transition-colors"></div>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 md:gap-3 border-t border-slate-100 pt-3">
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">ME(10)</p><input readonly value="${me}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">MO(20)</p><input readonly value="${mo}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">FE(10)</p><input readonly value="${fe}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">FO(25)</p><input readonly value="${fo}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                        </div>`;
+                    } else if(cat === 'adultos') {
+                        me = calcPromedioCategoria(eId, cId, 'me') !== null ? Number(calcPromedioCategoria(eId, cId, 'me')) : Number(n.me || 0);
+                        mo = calcPromedioCategoria(eId, cId, 'mo') !== null ? Number(calcPromedioCategoria(eId, cId, 'mo')) : Number(n.mo || 0);
+                        fe = calcPromedioCategoria(eId, cId, 'fe') !== null ? Number(calcPromedioCategoria(eId, cId, 'fe')) : Number(n.fe || 0);
+                        fo = calcPromedioCategoria(eId, cId, 'fo') !== null ? Number(calcPromedioCategoria(eId, cId, 'fo')) : Number(n.fo || 0);
+                        sum = par + tar + me + mo + fe + fo;
+                        inputsHtml = `
+                        <div class="grid grid-cols-3 gap-2 md:gap-3 mb-3">
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">PAR(10)</p><input onchange="updateNote('${eId}', 'par', this.value)" type="number" value="${par}" class="w-full text-center p-2 rounded-xl bg-slate-50 font-black text-sm md:text-base border focus:border-brand-teal outline-none transition-colors"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">TAR(15)</p><input readonly value="${tar}" class="w-full text-center p-2 rounded-xl bg-brand-teal/10 text-brand-teal font-black text-sm md:text-base border border-brand-teal/20 cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">REC(10)</p><input onchange="updateNote('${eId}', 'rec', this.value)" type="number" value="${rec}" class="w-full text-center p-2 rounded-xl bg-yellow-50 font-black text-sm md:text-base border border-yellow-200 text-brand-yellow focus:border-brand-yellow outline-none transition-colors"></div>
+                        </div>
+                        <div class="grid grid-cols-4 gap-2 md:gap-3 border-t border-slate-100 pt-3">
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">ME(10)</p><input readonly value="${me}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">MO(20)</p><input readonly value="${mo}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">FE(15)</p><input readonly value="${fe}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                            <div class="text-center"><p class="text-[9px] md:text-[10px] font-black uppercase mb-1">FO(30)</p><input readonly value="${fo}" class="w-full text-center p-2 rounded-xl bg-brand-teal/5 text-brand-teal font-black text-sm md:text-base border cursor-not-allowed"></div>
+                        </div>`;
+                    }
+                    
+                    let total = sum < 55 && rec > 0 ? Math.min(sum + rec, 55) : sum;
+                    
+                    html += `<div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <p class="font-black text-brand-navy text-sm md:text-base uppercase truncate pr-2">${e.nombre}</p>
+                            <span class="text-xs md:text-sm font-black ${total >= 55 ? 'text-brand-teal' : 'text-red-500'} bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">TOTAL: ${total}</span>
+                        </div>
+                        ${inputsHtml}
+                    </div>`;
+                }
+            }
+            if(!hasStudents) html += `<p class="col-span-full text-center text-slate-400 font-bold text-sm py-10">No hay alumnos en este curso.</p>`;
+            container.innerHTML = html + `</div>`;
+        }
+
+        async function updateNote(eId, field, val) { await db.ref(`estudiantes/${eId}/notas/${field}`).set(val || 0); renderGradesTable(document.getElementById('g-cur').value); }
+
+        function toggleGradeDetails() {
+            const container = document.getElementById('grades-details-container');
+            const icon = document.getElementById('icon-grades-toggle');
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            } else {
+                container.classList.add('hidden');
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            }
+        }
+
+        function renderStudentGrades() {
+            setActiveNav('s-nav-3');
+            const main = document.getElementById('app-content');
+            const e = globalData.estudiantes?.[currentUser.id] || currentUser;
+            const n = e.notas || {};
+            const cat = globalData.cursos?.[e.cursoId]?.categoria || 'adolescentes';
+
+            const asi = Number(n.asi || 0), par = Number(n.par || 0), rec = Number(n.rec || 0);
+            const tar = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'tar') || n.tar || 0);
+
+            let sum = 0, final = 0;
+            let detailsHtml = '';
+
+            if(cat === 'ninos') {
+                const fee = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'fee') || n.fee || 0);
+                const feo = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'feo') || n.feo || 0);
+                const see = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'see') || n.see || 0);
+                const seo = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'seo') || n.seo || 0);
+                const fe = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'fe') || n.fe || 0);
+                const fo = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'fo') || n.fo || 0);
+                sum = asi + par + tar + fee + feo + see + seo + fe + fo;
+                detailsHtml = `
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">ASISTENCIA (5 PTS)</span><span class="font-black text-base md:text-lg">${asi}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">PARTICIPACIÓN (10 PTS)</span><span class="font-black text-base md:text-lg">${par}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">TAREAS Y PRÁCTICAS (25)</span><span class="font-black text-brand-teal text-base md:text-lg">${tar}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FIRST EXAM ESCRITO (5)</span><span class="font-black text-brand-teal text-base md:text-lg">${fee}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FIRST EXAM ORAL (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${feo}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">SECOND EXAM ESCRITO (5)</span><span class="font-black text-brand-teal text-base md:text-lg">${see}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">SECOND EXAM ORAL (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${seo}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ESCRITO (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${fe}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ORAL (20)</span><span class="font-black text-brand-teal text-base md:text-lg">${fo}</span></div>
+                `;
+            } else if(cat === 'adolescentes') {
+                const me = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'me') || n.me || 0);
+                const mo = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'mo') || n.mo || 0);
+                const fe = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'fe') || n.fe || 0);
+                const fo = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'fo') || n.fo || 0);
+                sum = asi + par + tar + me + mo + fe + fo;
+                detailsHtml = `
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">ASISTENCIA (5 PTS)</span><span class="font-black text-base md:text-lg">${asi}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">PARTICIPACIÓN (10 PTS)</span><span class="font-black text-base md:text-lg">${par}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">TAREAS Y PRÁCTICAS (20)</span><span class="font-black text-brand-teal text-base md:text-lg">${tar}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">MIDTERM ESCRITO (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${me}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">MIDTERM ORAL (20)</span><span class="font-black text-brand-teal text-base md:text-lg">${mo}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ESCRITO (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${fe}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ORAL (25)</span><span class="font-black text-brand-teal text-base md:text-lg">${fo}</span></div>
+                `;
+            } else if(cat === 'adultos') {
+                const me = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'me') || n.me || 0);
+                const mo = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'mo') || n.mo || 0);
+                const fe = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'fe') || n.fe || 0);
+                const fo = Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'fo') || n.fo || 0);
+                sum = par + tar + me + mo + fe + fo;
+                detailsHtml = `
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">PARTICIPACIÓN (10 PTS)</span><span class="font-black text-base md:text-lg">${par}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">TAREAS Y PRÁCTICAS (15)</span><span class="font-black text-brand-teal text-base md:text-lg">${tar}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">MIDTERM ESCRITO (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${me}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">MIDTERM ORAL (20)</span><span class="font-black text-brand-teal text-base md:text-lg">${mo}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ESCRITO (15)</span><span class="font-black text-brand-teal text-base md:text-lg">${fe}</span></div>
+                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ORAL (30)</span><span class="font-black text-brand-teal text-base md:text-lg">${fo}</span></div>
+                `;
+            }
+            
+            final = sum < 55 && rec > 0 ? Math.min(sum + rec, 55) : sum;
+            
+            detailsHtml += `<div class="flex justify-between pt-2 items-center"><span class="text-xs font-black uppercase text-yellow-500">RECUPERATORIO (10 PTS)<br><span class="text-[10px] text-slate-400 block mt-1">(Puntaje mínimo 55)</span></span><span class="font-black text-yellow-500 text-base md:text-lg">${rec}</span></div>`;
+
+            main.innerHTML = `<div class="max-w-2xl mx-auto w-full">
+                <div class="text-center mt-2">
+                    <h3 class="font-black text-brand-navy text-2xl md:text-3xl uppercase mb-6 md:mb-8 italic">Mis Notas</h3>
+                    
+                    <div class="w-48 h-48 mx-auto bg-brand-navy rounded-full flex flex-col items-center justify-center shadow-2xl border-[8px] ${final >= 55 ? 'border-brand-teal' : 'border-red-400'} mb-6 transition-all hover:scale-105">
+                        <span class="text-7xl font-black text-white leading-none">${final}</span>
+                        <span class="text-[11px] font-bold text-slate-300 uppercase tracking-widest mt-3">Puntos Totales</span>
+                    </div>
+
+                    <button onclick="toggleGradeDetails()" class="mx-auto flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-brand-navy font-black text-xs md:text-sm px-6 py-3 rounded-full mb-8 transition-colors uppercase shadow-sm">
+                        Ver más detalles <i id="icon-grades-toggle" class="fa-solid fa-chevron-down"></i>
+                    </button>
+
+                    <div id="grades-details-container" class="hidden bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm text-left space-y-4 border border-slate-100">
+                        ${detailsHtml}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function renderTeacherStudents() {
+            setActiveNav('t-nav-2');
+            const main = document.getElementById('app-content');
+            let html = `<div class="max-w-7xl mx-auto w-full">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase italic">Alumnos</h3>
+                    <div class="flex gap-2">
+                        <button onclick="modalCargaMasiva()" class="bg-brand-yellow hover:bg-yellow-400 text-brand-navy p-3 md:px-5 md:py-3 rounded-xl text-xs md:text-sm font-black shadow-lg transition-colors"><i class="fa-solid fa-file-excel mr-1 md:mr-2"></i><span class="hidden md:inline">CARGA </span>MASIVA</button>
+                        <button onclick="modalNuevoAlumno()" class="bg-brand-teal hover:bg-teal-400 transition-colors text-white p-3 md:px-5 md:py-3 rounded-xl text-xs md:text-sm font-black shadow-lg"><i class="fa-solid fa-plus mr-1 md:mr-2"></i>NUEVO <span class="hidden md:inline">ALUMNO</span></button>
+                    </div>
+                </div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">`;
+            
+            for(let id in globalData.estudiantes) {
+                const e = globalData.estudiantes[id];
+                html += `<div class="bg-white p-5 rounded-2xl shadow-sm flex justify-between items-center border border-slate-100 hover:shadow-md transition-shadow">
+                    <div class="flex-1 min-w-0 pr-4">
+                        <p class="font-black text-brand-navy text-base md:text-lg uppercase mb-2 truncate">${e.nombre}</p>
+                        <p class="text-[10px] md:text-xs font-bold text-brand-teal uppercase bg-brand-teal/5 inline-block px-3 py-1.5 rounded">CÓDIGO: ${e.codigo} <span class="text-slate-300 mx-1">|</span> CURSO: ${globalData.cursos?.[e.cursoId]?.nombre || 'N/A'}</p>
+                    </div>
+                    <button onclick="eliminarRegistro('estudiantes/${id}')" class="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"><i class="fa-solid fa-trash text-xl md:text-2xl"></i></button>
+                </div>`;
+            }
+            if(!globalData.estudiantes || Object.keys(globalData.estudiantes).length === 0) {
+                html += `<p class="col-span-full text-center text-slate-400 font-bold text-sm py-10">No hay alumnos registrados.</p>`;
+            }
+            main.innerHTML = html + `</div></div>`;
+        }
+
+        function modalCargaMasiva() {
+            let ops = '<option value="">-- SELECCIONA UN GRUPO --</option>';
+            for(let key in globalData.cursos) ops += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
+            openModal(`
+                <div class="p-6 md:p-8 h-full flex flex-col">
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic flex-shrink-0">Carga Masiva <i class="fa-solid fa-file-excel text-green-600 ml-2"></i></h3>
+                    <div class="space-y-4 flex-1 flex flex-col min-h-0">
+                        <div class="flex-shrink-0">
+                            <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-1">1. Selecciona el Grupo Destino:</label>
+                            <select id="masivo-cur" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal border border-slate-200 transition-colors">${ops}</select>
+                        </div>
+                        
+                        <div class="flex-1 flex flex-col min-h-[30vh]">
+                            <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-1 mt-2">2. Pega los datos desde Excel:</label>
+                            <div class="bg-blue-50 p-3 rounded-xl mb-2 border border-blue-100">
+                                <p class="text-[10px] md:text-xs text-blue-800 font-bold leading-tight"><i class="fa-solid fa-circle-info mr-1"></i> Selecciona y copia 2 columnas de tu Excel (Nombre Completo y Código) y pégalas abajo. Una fila por alumno.</p>
+                            </div>
+                            <textarea id="masivo-datos" placeholder="EJEMPLO:\nJUAN PEREZ GOMEZ     JP123\nMARIA MAMANI CHUQUIMIA     MM456" class="w-full flex-1 p-4 bg-slate-50 rounded-2xl font-bold outline-none focus:bg-white focus:border-brand-teal transition-colors border border-slate-200 text-sm whitespace-pre shadow-inner resize-none"></textarea>
+                        </div>
+                        
+                        <button id="btn-procesar-masivo" onclick="procesarCargaMasiva()" class="w-full flex-shrink-0 bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 md:py-5 rounded-2xl font-black shadow-xl mt-2 uppercase text-sm tracking-widest"><i class="fa-solid fa-upload mr-2"></i> Procesar y Registrar</button>
+                    </div>
+                </div>`, true); 
+        }
+
+        async function procesarCargaMasiva() {
+            const cur = document.getElementById('masivo-cur').value;
+            const text = document.getElementById('masivo-datos').value.trim();
+            const btn = document.getElementById('btn-procesar-masivo');
+            
+            if(!cur) return alert("Por favor, selecciona un grupo destino en el paso 1.");
+            if(!text) return alert("Pega los datos de los estudiantes en la caja de texto.");
+
+            const lines = text.split('\n');
+            let successCount = 0;
+            let errors = 0;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Procesando...';
+            btn.classList.add('opacity-50');
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                
+                // Intentar separar por tabulación (por defecto al pegar desde Excel)
+                let parts = line.split('\t');
+                
+                // Si no hay tabulación, intentar por comas (CSV)
+                if (parts.length < 2) {
+                    parts = line.split(',');
+                }
+                
+                // Si sigue sin haber 2 partes, intentar separar por 2 o más espacios consecutivos
+                if (parts.length < 2) {
+                    parts = line.split(/\s{2,}/);
+                }
+
+                if (parts.length >= 2) {
+                    // El último elemento es el código
+                    const codigo = parts[parts.length - 1].trim().toUpperCase();
+                    
+                    // Todo lo anterior es el nombre (los unimos por si el nombre tenía tabulaciones extrañas o comas)
+                    parts.pop(); 
+                    const nombre = parts.join(' ').trim().toUpperCase();
+
+                    if (nombre && codigo) {
+                        try {
+                            await db.ref('estudiantes').push({ 
+                                nombre: nombre, 
+                                codigo: codigo, 
+                                cursoId: cur, 
+                                notas: {} 
+                            });
+                            successCount++;
+                        } catch (e) {
+                            errors++;
+                        }
+                    } else {
+                        errors++; // Fila con datos incompletos
+                    }
+                } else {
+                    errors++; // No se pudo separar la fila en Nombre y Código
+                }
+            }
+
+            alert(`CARGA MASIVA COMPLETADA:\n\n✅ Estudiantes registrados con éxito: ${successCount}\n❌ Filas con error o formato inválido: ${errors}`);
+            closeModal();
+            renderTeacherStudents();
+        }
+
+        async function modalNuevoAlumno() {
+            let ops = '';
+            for(let key in globalData.cursos) ops += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
+            openModal(`
+                <div class="p-6 md:p-8">
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Nuevo Estudiante</h3>
+                    <div class="space-y-4">
+                        <input id="al-nom" type="text" placeholder="NOMBRE COMPLETO" class="w-full p-4 bg-slate-100 rounded-2xl font-black uppercase outline-none focus:bg-white focus:border-brand-teal transition-colors border-2 border-transparent text-sm">
+                        <input id="al-cod" type="text" placeholder="CÓDIGO DE ACCESO (EJ: JUAN123)" class="w-full p-4 bg-slate-100 rounded-2xl font-black outline-none uppercase focus:bg-white focus:border-brand-teal transition-colors border-2 border-transparent text-sm">
+                        <div>
+                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Asignar a Grupo:</label>
+                            <select id="al-cur" class="w-full p-4 bg-slate-100 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal border-2 border-transparent">${ops}</select>
+                        </div>
+                        <button onclick="saveAlumno()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg mt-2 uppercase text-sm">Registrar</button>
+                    </div>
+                </div>`, false);
+        }
+
+        async function saveAlumno() {
+            const n = document.getElementById('al-nom').value.trim().toUpperCase();
+            const cod = document.getElementById('al-cod').value.trim().toUpperCase();
+            const cur = document.getElementById('al-cur').value;
+            if(!n || !cod || !cur) return;
+            await db.ref('estudiantes').push({ nombre: n, codigo: cod, cursoId: cur, notas: {} });
+            closeModal(); renderTeacherStudents();
+        }
+
+        function renderTeacherProfile() {
+            setActiveNav('t-nav-5');
+            const conf = globalData.configuracion || {};
+            document.getElementById('app-content').innerHTML = `<div class="max-w-2xl mx-auto w-full">
+                <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase mb-6 italic">Configuración</h3>
+                <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm space-y-5 border border-slate-100">
+                    <div>
+                        <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-2">Nombre del Docente/Admin:</label>
+                        <input id="set-name" type="text" value="${conf.adminName || 'DOCENTE'}" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none focus:border-brand-teal focus:bg-white transition-colors border-2 border-transparent text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-2">Código Maestro (Para entrar al sistema):</label>
+                        <input id="set-code" type="text" value="${conf.adminCode || 'PROFE2026'}" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none focus:border-brand-teal focus:bg-white transition-colors border-2 border-transparent text-sm">
+                    </div>
+                    <div>
+                        <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-2">Número de WhatsApp (Sin símbolo +):</label>
+                        <input id="set-wa" type="number" value="${conf.whatsapp || '591000000'}" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none focus:border-brand-teal focus:bg-white transition-colors border-2 border-transparent text-sm">
+                    </div>
+                    <button onclick="saveProfile()" class="w-full bg-brand-navy hover:bg-slate-800 transition-colors text-white py-4 md:py-5 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl mt-6">Guardar Cambios</button>
+                </div>
+            </div>`;
+        }
+
+        async function saveProfile() {
+            await db.ref('configuracion').set({
+                adminName: document.getElementById('set-name').value,
+                adminCode: document.getElementById('set-code').value.toUpperCase(),
+                whatsapp: document.getElementById('set-wa').value
+            });
+            alert("Configuración Actualizada");
+        }
+
+        function openModal(html, isFullScreen = false) { 
+            const content = document.getElementById('modal-content');
+            const box = document.getElementById('modal-box');
+            
+            content.innerHTML = html; 
+            
+            if(isFullScreen) {
+                // Configuración para que simule una hoja completa de Word en Laptops y Celulares
+                box.className = 'bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-[98vw] md:max-w-6xl h-[95vh] md:h-[95vh] rounded-2xl md:rounded-[2rem] overflow-hidden';
+                content.className = 'flex-1 flex flex-col h-full w-full';
+            } else {
+                // Modal estándar
+                box.className = 'bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-full max-w-sm md:max-w-xl rounded-[2rem] h-auto';
+                content.className = 'overflow-y-auto hide-scroll w-full max-h-[85vh]';
+            }
+            
+            document.getElementById('modal-overlay').classList.remove('hidden'); 
+            // Añade un estado al historial para interceptar el botón Atrás
+            history.pushState({ modalOpen: true }, "");
+        }
+
+        function closeModal() { 
+            const overlay = document.getElementById('modal-overlay');
+            if (overlay && !overlay.classList.contains('hidden')) {
+                overlay.classList.add('hidden');
+                // Si cerramos usando el botón de la interfaz, también retrocedemos en el historial para evitar inconsistencias
+                if (history.state && history.state.modalOpen) {
+                    history.back();
+                }
+            }
+        }
+
+        async function eliminarRegistro(path) { if(confirm("¿Estás seguro de eliminar este registro?")) await db.ref(path).remove(); }
+    </script>
+<script>
+    // Registrar el Service Worker para permitir la instalación
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => {
+                    console.log('Service Worker registrado con éxito:', registration.scope);
+                })
+                .catch(error => {
+                    console.log('Error al registrar el Service Worker:', error);
+                });
+        });
+    }
+</script>
+<script>
+    // Lógica del botón de instalación
+    let deferredPrompt;
+    const installBanner = document.getElementById('install-banner');
+    const installButton = document.getElementById('install-button');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        // Evita que el navegador muestre su propio aviso
+        e.preventDefault();
+        deferredPrompt = e;
+        // Muestra nuestro banner personalizado
+        installBanner.style.display = 'block';
+    });
+
+    installButton.addEventListener('click', (e) => {
+        installBanner.style.display = 'none';
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('El usuario aceptó la instalación');
+            }
+            deferredPrompt = null;
+        });
+    });
+</script>
+</body>
+</html>
