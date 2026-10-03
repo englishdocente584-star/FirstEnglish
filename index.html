@@ -406,6 +406,30 @@
             main.innerHTML = html + `</div>`;
         }
 
+        // --- SISTEMA DE PONDERACIONES POR GRUPO ---
+        function getGroupPonderaciones(cursoId) {
+            const defaultPond = {
+                asistencia: 5,
+                participacion: 10,
+                tareas: 25,
+                midtermEscrito: 10,
+                midtermOral: 15,
+                finalEscrito: 15,
+                finalOral: 20
+            };
+            if (!cursoId || !globalData.cursos || !globalData.cursos[cursoId]) return defaultPond;
+            const pond = globalData.cursos[cursoId].ponderaciones || {};
+            return {
+                asistencia: Number(pond.asistencia ?? defaultPond.asistencia),
+                participacion: Number(pond.participacion ?? defaultPond.participacion),
+                tareas: Number(pond.tareas ?? defaultPond.tareas),
+                midtermEscrito: Number(pond.midtermEscrito ?? defaultPond.midtermEscrito),
+                midtermOral: Number(pond.midtermOral ?? defaultPond.midtermOral),
+                finalEscrito: Number(pond.finalEscrito ?? defaultPond.finalEscrito),
+                finalOral: Number(pond.finalOral ?? defaultPond.finalOral)
+            };
+        }
+
         function renderTeacherGrupos() {
             setActiveNav('t-nav-7');
             const main = document.getElementById('app-content');
@@ -420,7 +444,11 @@
                 html += `<div class="bg-white p-5 rounded-2xl shadow-sm flex justify-between items-center border border-slate-100 hover:shadow-md transition-shadow">
                     <div>
                         <p class="font-black text-brand-navy text-lg uppercase">${c.nombre}</p>
-                        <p class="text-[10px] font-bold text-brand-teal uppercase bg-brand-teal/10 inline-block px-2 py-1 rounded mt-1">${c.categoria || 'ADOLESCENTES'}</p>
+                        <div class="flex items-center gap-2 mt-2">
+                            <button onclick="modalPonderaciones('${id}')" class="bg-brand-teal/10 hover:bg-brand-teal hover:text-white transition-colors text-brand-teal text-xs font-black px-3 py-1.5 rounded-lg flex items-center gap-1">
+                                <i class="fa-solid fa-sliders"></i> Ponderaciones
+                            </button>
+                        </div>
                     </div>
                     <button onclick="eliminarRegistro('cursos/${id}')" class="text-slate-300 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash text-xl md:text-2xl"></i></button>
                 </div>`;
@@ -437,14 +465,6 @@
                     <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Nuevo Grupo / Materia</h3>
                     <div class="space-y-4">
                         <input id="cur-nom" type="text" placeholder="NOMBRE DEL GRUPO (EJ: INTERMEDIATE 1)" class="w-full p-4 bg-slate-100 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors">
-                        <div>
-                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Categoría General (Tipo de Calificación):</label>
-                            <select id="cur-cat" class="w-full p-4 bg-slate-100 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal">
-                                <option value="ninos">Niños</option>
-                                <option value="adolescentes">Adolescentes</option>
-                                <option value="adultos">Adultos</option>
-                            </select>
-                        </div>
                         <button onclick="saveCurso()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg mt-2 uppercase text-sm">Crear Grupo</button>
                     </div>
                 </div>`, false);
@@ -452,11 +472,108 @@
 
         async function saveCurso() {
             const n = document.getElementById('cur-nom').value.trim().toUpperCase();
-            const cat = document.getElementById('cur-cat').value;
             if(!n) return alert("Por favor ingresa un nombre para el grupo.");
-            await db.ref('cursos').push({ nombre: n, categoria: cat });
+            
+            const defaultPond = {
+                asistencia: 5,
+                participacion: 10,
+                tareas: 25,
+                midtermEscrito: 10,
+                midtermOral: 15,
+                finalEscrito: 15,
+                finalOral: 20
+            };
+
+            await db.ref('cursos').push({ nombre: n, ponderaciones: defaultPond });
             closeModal();
             renderTeacherGrupos();
+        }
+
+        function modalPonderaciones(cursoId) {
+            const curso = globalData.cursos[cursoId];
+            if (!curso) return;
+            const p = getGroupPonderaciones(cursoId);
+            
+            openModal(`
+                <div class="p-6 md:p-8">
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-1 italic">Editar Ponderaciones de Calificación</h3>
+                    <p class="text-xs font-bold text-brand-teal uppercase mb-6">Grupo: ${curso.nombre}</p>
+                    
+                    <div class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                            <span class="text-xs font-black uppercase text-brand-navy">1. Asistencia</span>
+                            <div class="flex items-center gap-2">
+                                <input id="p-asi" type="number" min="0" value="${p.asistencia}" class="w-20 p-2 text-center font-black rounded-xl border border-slate-300 outline-none focus:border-brand-teal">
+                                <span class="text-xs font-bold text-slate-400">pts</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                            <span class="text-xs font-black uppercase text-brand-navy">2. Participación</span>
+                            <div class="flex items-center gap-2">
+                                <input id="p-par" type="number" min="0" value="${p.participacion}" class="w-20 p-2 text-center font-black rounded-xl border border-slate-300 outline-none focus:border-brand-teal">
+                                <span class="text-xs font-bold text-slate-400">pts</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                            <span class="text-xs font-black uppercase text-brand-navy">3. Tareas y Prácticas</span>
+                            <div class="flex items-center gap-2">
+                                <input id="p-tar" type="number" min="0" value="${p.tareas}" class="w-20 p-2 text-center font-black rounded-xl border border-slate-300 outline-none focus:border-brand-teal">
+                                <span class="text-xs font-bold text-slate-400">pts</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                            <span class="text-xs font-black uppercase text-brand-navy">4. Midterm Escrito</span>
+                            <div class="flex items-center gap-2">
+                                <input id="p-me" type="number" min="0" value="${p.midtermEscrito}" class="w-20 p-2 text-center font-black rounded-xl border border-slate-300 outline-none focus:border-brand-teal">
+                                <span class="text-xs font-bold text-slate-400">pts</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                            <span class="text-xs font-black uppercase text-brand-navy">5. Midterm Oral</span>
+                            <div class="flex items-center gap-2">
+                                <input id="p-mo" type="number" min="0" value="${p.midtermOral}" class="w-20 p-2 text-center font-black rounded-xl border border-slate-300 outline-none focus:border-brand-teal">
+                                <span class="text-xs font-bold text-slate-400">pts</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                            <span class="text-xs font-black uppercase text-brand-navy">6. Final Escrito</span>
+                            <div class="flex items-center gap-2">
+                                <input id="p-fe" type="number" min="0" value="${p.finalEscrito}" class="w-20 p-2 text-center font-black rounded-xl border border-slate-300 outline-none focus:border-brand-teal">
+                                <span class="text-xs font-bold text-slate-400">pts</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                            <span class="text-xs font-black uppercase text-brand-navy">7. Final Oral</span>
+                            <div class="flex items-center gap-2">
+                                <input id="p-fo" type="number" min="0" value="${p.finalOral}" class="w-20 p-2 text-center font-black rounded-xl border border-slate-300 outline-none focus:border-brand-teal">
+                                <span class="text-xs font-bold text-slate-400">pts</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button onclick="savePonderaciones('${cursoId}')" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg mt-6 uppercase text-sm">Guardar Ponderaciones</button>
+                </div>
+            `, false);
+        }
+
+        async function savePonderaciones(cursoId) {
+            const pondData = {
+                asistencia: Number(document.getElementById('p-asi').value) || 0,
+                participacion: Number(document.getElementById('p-par').value) || 0,
+                tareas: Number(document.getElementById('p-tar').value) || 0,
+                midtermEscrito: Number(document.getElementById('p-me').value) || 0,
+                midtermOral: Number(document.getElementById('p-mo').value) || 0,
+                finalEscrito: Number(document.getElementById('p-fe').value) || 0,
+                finalOral: Number(document.getElementById('p-fo').value) || 0
+            };
+            await db.ref(`cursos/${cursoId}/ponderaciones`).set(pondData);
+            alert("Ponderaciones actualizadas correctamente.");
+            closeModal();
+            if (document.getElementById('grades-table-container')) {
+                renderGradesTable(cursoId);
+            } else {
+                renderTeacherGrupos();
+            }
         }
 
         function renderTeacherMateriales() {
@@ -615,31 +732,17 @@
             const catSelect = document.getElementById('p-cat');
             if(!catSelect) return;
             
-            let html = '<option value="none_0">NO EVALUABLE (Aviso)</option>';
-            if(curId !== 'all') {
-                const cat = globalData.cursos[curId]?.categoria || 'adolescentes';
-                if(cat === 'ninos') {
-                    html += '<option value="tar_25">TAREAS Y PRÁCTICAS (25 PTS)</option>';
-                    html += '<option value="fee_5">FIRST EXAM ESCRITO (5 PTS)</option>';
-                    html += '<option value="feo_10">FIRST EXAM ORAL (10 PTS)</option>';
-                    html += '<option value="see_5">SECOND EXAM ESCRITO (5 PTS)</option>';
-                    html += '<option value="seo_10">SECOND EXAM ORAL (10 PTS)</option>';
-                    html += '<option value="fe_10">FINAL ESCRITO (10 PTS)</option>';
-                    html += '<option value="fo_20">FINAL ORAL (20 PTS)</option>';
-                } else if(cat === 'adolescentes') {
-                    html += '<option value="tar_20">TAREAS Y PRÁCTICAS (20 PTS)</option>';
-                    html += '<option value="me_10">MIDTERM ESCRITO (10 PTS)</option>';
-                    html += '<option value="mo_20">MIDTERM ORAL (20 PTS)</option>';
-                    html += '<option value="fe_10">FINAL ESCRITO (10 PTS)</option>';
-                    html += '<option value="fo_25">FINAL ORAL (25 PTS)</option>';
-                } else if(cat === 'adultos') {
-                    html += '<option value="tar_15">TAREAS Y PRÁCTICAS (15 PTS)</option>';
-                    html += '<option value="me_10">MIDTERM ESCRITO (10 PTS)</option>';
-                    html += '<option value="mo_20">MIDTERM ORAL (20 PTS)</option>';
-                    html += '<option value="fe_15">FINAL ESCRITO (15 PTS)</option>';
-                    html += '<option value="fo_30">FINAL ORAL (30 PTS)</option>';
-                }
-            }
+            const pond = getGroupPonderaciones(curId !== 'all' ? curId : null);
+            
+            let html = '<option value="none_0">NO EVALUABLE (Aviso General)</option>';
+            html += `<option value="tareas_${pond.tareas}" selected>TAREAS Y PRÁCTICAS (POND: ${pond.tareas} PTS)</option>`;
+            html += `<option value="asistencia_${pond.asistencia}">ASISTENCIA (POND: ${pond.asistencia} PTS)</option>`;
+            html += `<option value="participacion_${pond.participacion}">PARTICIPACIÓN (POND: ${pond.participacion} PTS)</option>`;
+            html += `<option value="midtermEscrito_${pond.midtermEscrito}">MIDTERM ESCRITO (POND: ${pond.midtermEscrito} PTS)</option>`;
+            html += `<option value="midtermOral_${pond.midtermOral}">MIDTERM ORAL (POND: ${pond.midtermOral} PTS)</option>`;
+            html += `<option value="finalEscrito_${pond.finalEscrito}">FINAL ESCRITO (POND: ${pond.finalEscrito} PTS)</option>`;
+            html += `<option value="finalOral_${pond.finalOral}">FINAL ORAL (POND: ${pond.finalOral} PTS)</option>`;
+            
             catSelect.innerHTML = html;
         }
 
@@ -648,15 +751,30 @@
             for(let key in globalData.cursos) options += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
             openModal(`
                 <div class="p-6 md:p-8">
-                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Crear Actividad</h3>
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic">Crear Actividad / Tarea</h3>
                     <div class="space-y-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <select id="p-cur" onchange="updateCatSelect()" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase focus:border-brand-teal transition-colors cursor-pointer">${options}</select>
-                            <select id="p-cat" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase text-brand-teal focus:border-brand-teal transition-colors cursor-pointer">
-                                <option value="none_0">NO EVALUABLE (Aviso)</option>
-                            </select>
+                            <div>
+                                <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Grupo / Curso:</label>
+                                <select id="p-cur" onchange="updateCatSelect()" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase focus:border-brand-teal transition-colors cursor-pointer border border-slate-200">${options}</select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Categoría de Calificación:</label>
+                                <select id="p-cat" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase text-brand-teal focus:border-brand-teal transition-colors cursor-pointer border border-slate-200">
+                                    <option value="none_0">NO EVALUABLE (Aviso)</option>
+                                </select>
+                            </div>
                         </div>
-                        <input id="p-tit" type="text" placeholder="TÍTULO DE LA TAREA" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="md:col-span-2">
+                                <input id="p-tit" type="text" placeholder="TÍTULO DE LA TAREA / PRÁCTICA" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors">
+                            </div>
+                            <div>
+                                <input id="p-max-pts" type="number" value="100" placeholder="PUNTOS MÁXIMOS" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none focus:border-brand-teal focus:bg-white transition-colors text-center" title="Puntaje de esta tarea específica">
+                            </div>
+                        </div>
+
                         <textarea id="p-desc" placeholder="INSTRUCCIONES..." class="w-full p-4 bg-slate-50 rounded-2xl font-bold outline-none h-28 text-sm focus:border-brand-teal focus:bg-white transition-colors"></textarea>
                         
                         <div class="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200 hover:border-brand-teal transition-colors">
@@ -665,13 +783,13 @@
                         </div>
                         
                         <div class="bg-slate-50 p-4 rounded-2xl flex flex-col md:flex-row justify-between md:items-center border border-slate-100 gap-3">
-                            <label class="text-sm font-black text-slate-400 uppercase">Límite</label>
+                            <label class="text-sm font-black text-slate-400 uppercase">Límite de Entrega</label>
                             <div class="flex flex-1 md:flex-none gap-2">
                                 <input id="p-fecha" type="date" class="w-full md:w-auto bg-white p-3 rounded-xl font-black outline-none text-brand-teal text-sm cursor-pointer shadow-sm border border-slate-200">
                                 <input id="p-hora" type="time" class="w-full md:w-auto bg-white p-3 rounded-xl font-black outline-none text-brand-teal text-sm cursor-pointer shadow-sm border border-slate-200">
                             </div>
                         </div>
-                        <button onclick="savePublicacion()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest mt-2">Publicar</button>
+                        <button onclick="savePublicacion()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest mt-2">Publicar Actividad</button>
                     </div>
                 </div>`, false);
             updateCatSelect();
@@ -681,11 +799,12 @@
             const catVal = document.getElementById('p-cat').value.split('_');
             const fechaActual = new Date();
             const fechaPub = `${String(fechaActual.getDate()).padStart(2, '0')}/${String(fechaActual.getMonth() + 1).padStart(2, '0')}/${fechaActual.getFullYear()}`;
-            
+            const maxInput = Number(document.getElementById('p-max-pts').value) || 100;
+
             const data = {
                 tipo: catVal[0] === 'none' ? 'Aviso' : 'Tarea',
                 categoria: catVal[0],
-                maxPts: Number(catVal[1]),
+                maxPts: catVal[0] === 'none' ? 0 : maxInput,
                 cursoId: document.getElementById('p-cur').value,
                 titulo: document.getElementById('p-tit').value.trim().toUpperCase(),
                 descripcion: document.getElementById('p-desc').value.trim(),
@@ -735,7 +854,7 @@
                     if (isEvaluable) {
                         if (miEntrega) {
                             if (miEntrega.nota !== undefined && miEntrega.nota !== "") {
-                                buttonHtml = `<button onclick="modalSubirTarea('${k}')" class="w-full bg-brand-teal/10 text-brand-teal border border-brand-teal/30 hover:bg-brand-teal/20 py-3 md:py-4 rounded-2xl font-black text-xs md:text-sm uppercase shadow-sm transition-colors"><i class="fa-solid fa-star mr-1"></i> CALIFICADO: ${miEntrega.nota} / ${p.maxPts || '-'} PTS</button>`;
+                                buttonHtml = `<button onclick="modalSubirTarea('${k}')" class="w-full bg-brand-teal/10 text-brand-teal border border-brand-teal/30 hover:bg-brand-teal/20 py-3 md:py-4 rounded-2xl font-black text-xs md:text-sm uppercase shadow-sm transition-colors"><i class="fa-solid fa-star mr-1"></i> CALIFICADO: ${miEntrega.nota} / ${p.maxPts || 100} PTS</button>`;
                             } else {
                                 buttonHtml = `<button onclick="modalSubirTarea('${k}')" class="w-full bg-green-500 hover:bg-green-400 text-white py-3 md:py-4 rounded-2xl font-black text-xs md:text-sm uppercase shadow-sm transition-colors"><i class="fa-solid fa-eye mr-1"></i> VER TRABAJO ENTREGADO</button>`;
                             }
@@ -815,7 +934,7 @@
                         <h3 class="font-black text-brand-navy text-xl md:text-3xl uppercase mb-2 italic">Entregar Trabajo</h3>
                         <p class="text-xs md:text-sm font-black text-brand-teal uppercase mb-4">${pub.titulo}</p>
                         
-                        <div class="space-y-4 flex-1 flex flex-col pb-2">
+                        <div class="space-y-4 flex-1 flex flex-col min-h-0">
                             <div>
                                 <label class="text-[10px] md:text-xs font-black text-slate-400 uppercase ml-2 mb-2 block">1. Link de la tarea (Drive, PDF, YouTube):</label>
                                 <input id="e-link" type="url" placeholder="https://drive.google.com/..." class="w-full p-4 rounded-2xl bg-white text-sm font-black border-2 border-slate-200 outline-none focus:border-brand-teal shadow-sm transition-colors">
@@ -881,19 +1000,6 @@
             }
         }
 
-        function calcPromedioCategoria(estId, curId, catKey) {
-            let sum = 0, count = 0;
-            for(let pId in globalData.publicaciones) {
-                let p = globalData.publicaciones[pId];
-                if(p.categoria === catKey && (p.cursoId === curId || p.cursoId === 'all')) {
-                    count++;
-                    const nota = globalData.entregas?.[pId]?.[estId]?.nota;
-                    if(nota !== undefined && nota !== '') sum += Number(nota);
-                }
-            }
-            return count > 0 ? (sum / count).toFixed(1) : null;
-        }
-
         function verEntregas(pubId) {
             const pub = globalData.publicaciones[pubId];
             const entregas = globalData.entregas?.[pubId] || {};
@@ -926,7 +1032,6 @@
             openModal(html + `</div></div>`, false); 
         }
 
-        // --- REVISIÓN EN PANTALLA COMPLETA CON EDITOR MEJORADO ---
         function verEntregaDetalle(pubId, estId) {
             const pub = globalData.publicaciones[pubId];
             const ent = globalData.entregas[pubId][estId];
@@ -962,7 +1067,6 @@
                     <div class="flex-1 flex flex-col min-h-0 bg-slate-200 overflow-hidden relative">
                         
                         <div class="flex flex-wrap items-center gap-2 bg-white p-2 md:p-3 shadow-sm z-10 overflow-x-auto hide-scroll justify-center border-b border-slate-300">
-                            
                             <button type="button" onclick="document.execCommand('bold', false, null)" class="w-8 h-8 md:w-auto md:px-3 md:py-1 bg-slate-50 rounded font-black shadow-sm hover:bg-slate-200 text-sm border border-slate-300 flex items-center justify-center">B</button>
                             <button type="button" onclick="document.execCommand('italic', false, null)" class="w-8 h-8 md:w-auto md:px-3 md:py-1 bg-slate-50 rounded font-black shadow-sm hover:bg-slate-200 italic text-sm border border-slate-300 flex items-center justify-center">I</button>
                             <button type="button" onclick="document.execCommand('underline', false, null)" class="w-8 h-8 md:w-auto md:px-3 md:py-1 bg-slate-50 rounded font-black shadow-sm hover:bg-slate-200 underline text-sm border border-slate-300 flex items-center justify-center">U</button>
@@ -998,145 +1102,317 @@
             if (correccion === '<br>') correccion = '';
 
             await db.ref(`entregas/${pubId}/${estId}`).update({
-                nota: nota,
+                nota: nota !== "" ? Number(nota) : "",
                 correccion: correccion
             });
             alert("Revisión guardada correctamente");
             verEntregas(pubId); 
         }
 
-        // --- LIBRETA DE CALIFICACIONES MEJORADA (VISTA DOCENTE) ---
+        // --- LIBRETA DE CALIFICACIONES DINÁMICA ---
         function renderTeacherGradesControl() {
             setActiveNav('t-nav-4');
             const main = document.getElementById('app-content');
             let ops = '<option value="">SELECCIONA UN CURSO...</option>';
             for(let key in globalData.cursos) ops += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
             main.innerHTML = `<div class="max-w-7xl mx-auto w-full">
-                <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase mb-6 italic">Libreta de Calificaciones</h3>
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <h3 class="font-black text-2xl md:text-3xl text-brand-navy uppercase italic">Libreta de Calificaciones</h3>
+                    <div id="gradebook-header-actions" class="hidden flex flex-wrap gap-2">
+                        <button onclick="modalNuevaTareaManual(document.getElementById('g-cur').value)" class="bg-brand-teal hover:bg-teal-400 text-white font-black text-xs md:text-sm px-4 py-3 rounded-2xl shadow-md transition-colors flex items-center gap-2">
+                            <i class="fa-solid fa-plus text-base"></i> TAREA / PRÁCTICA MANUAL
+                        </button>
+                        <button onclick="modalPonderaciones(document.getElementById('g-cur').value)" class="bg-brand-navy hover:bg-slate-800 text-brand-yellow font-black text-xs md:text-sm px-4 py-3 rounded-2xl shadow-md transition-colors flex items-center gap-2">
+                            <i class="fa-solid fa-sliders"></i> CONFIG. PONDERACIONES
+                        </button>
+                    </div>
+                </div>
                 <select id="g-cur" onchange="renderGradesTable(this.value)" class="w-full md:max-w-md p-4 bg-white rounded-2xl font-black text-brand-navy shadow-sm mb-6 outline-none cursor-pointer focus:border-brand-teal text-sm">${ops}</select>
                 <div id="grades-table-container"></div>
             </div>`;
         }
 
-        function renderGradesTable(cId) {
-            if(!cId) return;
-            const container = document.getElementById('grades-table-container');
-            const cat = globalData.cursos[cId]?.categoria || 'adolescentes';
+        function modalNuevaTareaManual(cursoId) {
+            if(!cursoId) return alert("Por favor selecciona un grupo primero.");
+            const curso = globalData.cursos[cursoId];
+            openModal(`
+                <div class="p-6 md:p-8">
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-2 italic"><i class="fa-solid fa-plus text-brand-teal mr-2"></i> Añadir Tarea / Práctica a la Libreta</h3>
+                    <p class="text-xs font-bold text-brand-teal uppercase mb-4">Grupo: ${curso ? curso.nombre : ''}</p>
+                    <div class="space-y-4">
+                        <input id="tm-tit" type="text" placeholder="TÍTULO (EJ: PRÁCTICA EN CLASE #1)" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors border-2 border-transparent text-sm">
+                        <div>
+                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Categoría de Calificación:</label>
+                            <select id="tm-cat" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm uppercase cursor-pointer focus:border-brand-teal border border-slate-200">
+                                <option value="tareas" selected>TAREAS Y PRÁCTICAS</option>
+                                <option value="asistencia">ASISTENCIA</option>
+                                <option value="participacion">PARTICIPACIÓN</option>
+                                <option value="midtermEscrito">MIDTERM ESCRITO</option>
+                                <option value="midtermOral">MIDTERM ORAL</option>
+                                <option value="finalEscrito">FINAL ESCRITO</option>
+                                <option value="finalOral">FINAL ORAL</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-black text-slate-400 uppercase ml-2 block mb-1">Puntaje Máximo de esta Tarea / Práctica:</label>
+                            <input id="tm-max" type="number" value="100" min="1" class="w-full p-4 bg-slate-50 rounded-2xl font-black outline-none text-sm focus:border-brand-teal focus:bg-white transition-colors border border-slate-200">
+                        </div>
+                        <button onclick="saveTareaManual('${cursoId}')" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black shadow-lg uppercase text-sm tracking-widest mt-2">Crear y Colocar en Libreta</button>
+                    </div>
+                </div>
+            `, false);
+        }
 
-            // Agrupar alumnos del curso
+        async function saveTareaManual(cursoId) {
+            const tit = document.getElementById('tm-tit').value.trim().toUpperCase();
+            const cat = document.getElementById('tm-cat').value;
+            const maxPts = Number(document.getElementById('tm-max').value) || 100;
+
+            if(!tit) return alert("Por favor ingresa un título para la tarea.");
+
+            const fechaActual = new Date();
+            const fechaPub = `${String(fechaActual.getDate()).padStart(2, '0')}/${String(fechaActual.getMonth() + 1).padStart(2, '0')}/${fechaActual.getFullYear()}`;
+
+            await db.ref('publicaciones').push({
+                tipo: 'Tarea',
+                categoria: cat,
+                maxPts: maxPts,
+                cursoId: cursoId,
+                titulo: tit,
+                descripcion: 'Tarea / Práctica añadida manualmente desde la libreta.',
+                fechaPublicado: fechaPub,
+                fecha: `${fechaActual.getFullYear()}-${String(fechaActual.getMonth() + 1).padStart(2, '0')}-${String(fechaActual.getDate()).padStart(2, '0')}`,
+                hora: "23:59",
+                isManual: true
+            });
+
+            closeModal();
+            renderGradesTable(cursoId);
+        }
+
+        async function updateTaskGrade(taskId, estId, notaVal) {
+            const est = globalData.estudiantes[estId];
+            if(!est) return;
+            
+            if (notaVal === "" || notaVal === null) {
+                await db.ref(`entregas/${taskId}/${estId}/nota`).remove();
+            } else {
+                await db.ref(`entregas/${taskId}/${estId}`).update({
+                    alumno: est.nombre,
+                    nota: Number(notaVal),
+                    fecha: new Date().toLocaleString()
+                });
+            }
+            renderGradesTable(document.getElementById('g-cur').value);
+        }
+
+        async function updateDirectGrade(estId, fieldKey, val) {
+            if (val === "" || val === null) {
+                await db.ref(`estudiantes/${estId}/notas/${fieldKey}`).remove();
+            } else {
+                await db.ref(`estudiantes/${estId}/notas/${fieldKey}`).set(Number(val));
+            }
+            renderGradesTable(document.getElementById('g-cur').value);
+        }
+
+        function renderGradesTable(cId) {
+            const container = document.getElementById('grades-table-container');
+            const actionsHeader = document.getElementById('gradebook-header-actions');
+            
+            if(!cId) {
+                if(container) container.innerHTML = '';
+                if(actionsHeader) actionsHeader.classList.add('hidden');
+                return;
+            }
+            
+            if(actionsHeader) actionsHeader.classList.remove('hidden');
+
+            const pond = getGroupPonderaciones(cId);
+
+            // 1. Obtener alumnos del curso
             let students = [];
             for(let eId in globalData.estudiantes) {
                 if(globalData.estudiantes[eId].cursoId === cId) {
                     students.push({...globalData.estudiantes[eId], id: eId});
                 }
             }
-
-            // Ordenar alfabéticamente
             students.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
             if(students.length === 0) {
-                container.innerHTML = `<p class="text-center text-slate-400 font-bold text-sm py-10">No hay alumnos en este curso.</p>`;
+                container.innerHTML = `<p class="text-center text-slate-400 font-bold text-sm py-10">No hay alumnos registrados en este grupo.</p>`;
                 return;
             }
 
-            // Generar Cabeceras según la categoría
-            let headers = `<th class="p-3 text-center">N°</th><th class="p-3 w-56">ALUMNO</th>`;
-            if(cat === 'ninos' || cat === 'adolescentes') headers += `<th class="p-3 text-center" title="Asistencia">ASI<br>(5)</th>`;
-            headers += `<th class="p-3 text-center" title="Participación en Clase">PAR<br>(10)</th>`;
-            
-            const maxTar = cat === 'ninos' ? 25 : (cat === 'adolescentes' ? 20 : 15);
-            headers += `<th class="p-3 text-center text-brand-teal" title="Tareas en Plataforma (Automático)">TAR.APP</th>`;
-            headers += `<th class="p-3 text-center text-brand-teal" title="Tareas Físicas / Extras (Manual)">TAR.EXT</th>`;
+            // 2. Agrupar Tareas y Actividades publicadas por Categoría para este grupo
+            const tasksByCat = {
+                asistencia: [],
+                participacion: [],
+                tareas: [],
+                midtermEscrito: [],
+                midtermOral: [],
+                finalEscrito: [],
+                finalOral: []
+            };
 
-            if(cat === 'ninos') {
-                headers += `<th class="p-3 text-center">1E.ESC<br>(5)</th><th class="p-3 text-center">1E.ORL<br>(10)</th>`;
-                headers += `<th class="p-3 text-center">2E.ESC<br>(5)</th><th class="p-3 text-center">2E.ORL<br>(10)</th>`;
-                headers += `<th class="p-3 text-center">F.ESC<br>(10)</th><th class="p-3 text-center">F.ORL<br>(20)</th>`;
-            } else if (cat === 'adolescentes') {
-                headers += `<th class="p-3 text-center">ME<br>(10)</th><th class="p-3 text-center">MO<br>(20)</th>`;
-                headers += `<th class="p-3 text-center">FE<br>(10)</th><th class="p-3 text-center">FO<br>(25)</th>`;
-            } else if (cat === 'adultos') {
-                headers += `<th class="p-3 text-center">ME<br>(10)</th><th class="p-3 text-center">MO<br>(20)</th>`;
-                headers += `<th class="p-3 text-center">FE<br>(15)</th><th class="p-3 text-center">FO<br>(30)</th>`;
+            for(let pId in globalData.publicaciones) {
+                const p = globalData.publicaciones[pId];
+                if((p.cursoId === cId || p.cursoId === 'all') && p.categoria && tasksByCat[p.categoria]) {
+                    tasksByCat[p.categoria].push({ ...p, id: pId });
+                }
             }
 
-            headers += `<th class="p-3 text-center text-yellow-500">REC<br>(10)</th><th class="p-3 text-center bg-brand-teal text-white">TOTAL</th>`;
+            // Construcción de Cabeceras
+            let headers = `<th class="p-3 text-center bg-brand-navy text-white">N°</th><th class="p-3 text-left w-56 bg-brand-navy text-white">ALUMNO</th>`;
 
+            // Asistencia
+            headers += `<th class="p-3 text-center bg-slate-800 text-brand-teal" title="Asistencia (Max: ${pond.asistencia})">ASI<br>(${pond.asistencia}p)</th>`;
+            
+            // Participación
+            headers += `<th class="p-3 text-center bg-slate-800 text-brand-teal" title="Participación (Max: ${pond.participacion})">PAR<br>(${pond.participacion}p)</th>`;
+
+            // Tareas y Prácticas (Dinámicas)
+            if (tasksByCat.tareas.length > 0) {
+                tasksByCat.tareas.forEach(t => {
+                    headers += `<th class="p-2 text-center bg-teal-800 text-teal-100 text-[9px] max-w-[100px] truncate border-r border-teal-700" title="${t.titulo}">${t.titulo}<br>(${t.maxPts || 100}p)</th>`;
+                });
+            }
+            headers += `<th class="p-3 text-center bg-teal-900 text-brand-yellow" title="Tareas Ponderadas sobre ${pond.tareas} pts">POND. TAR<br>(${pond.tareas}p)</th>`;
+
+            // Midterm Escrito
+            if (tasksByCat.midtermEscrito.length > 0) {
+                tasksByCat.midtermEscrito.forEach(t => {
+                    headers += `<th class="p-2 text-center bg-blue-900 text-blue-100 text-[9px] max-w-[100px] truncate" title="${t.titulo}">${t.titulo}<br>(${t.maxPts || 100}p)</th>`;
+                });
+            } else {
+                headers += `<th class="p-3 text-center bg-blue-900 text-blue-100">ME<br>(${pond.midtermEscrito}p)</th>`;
+            }
+
+            // Midterm Oral
+            if (tasksByCat.midtermOral.length > 0) {
+                tasksByCat.midtermOral.forEach(t => {
+                    headers += `<th class="p-2 text-center bg-blue-900 text-blue-100 text-[9px] max-w-[100px] truncate" title="${t.titulo}">${t.titulo}<br>(${t.maxPts || 100}p)</th>`;
+                });
+            } else {
+                headers += `<th class="p-3 text-center bg-blue-900 text-blue-100">MO<br>(${pond.midtermOral}p)</th>`;
+            }
+
+            // Final Escrito
+            if (tasksByCat.finalEscrito.length > 0) {
+                tasksByCat.finalEscrito.forEach(t => {
+                    headers += `<th class="p-2 text-center bg-indigo-900 text-indigo-100 text-[9px] max-w-[100px] truncate" title="${t.titulo}">${t.titulo}<br>(${t.maxPts || 100}p)</th>`;
+                });
+            } else {
+                headers += `<th class="p-3 text-center bg-indigo-900 text-indigo-100">FE<br>(${pond.finalEscrito}p)</th>`;
+            }
+
+            // Final Oral
+            if (tasksByCat.finalOral.length > 0) {
+                tasksByCat.finalOral.forEach(t => {
+                    headers += `<th class="p-2 text-center bg-indigo-900 text-indigo-100 text-[9px] max-w-[100px] truncate" title="${t.titulo}">${t.titulo}<br>(${t.maxPts || 100}p)</th>`;
+                });
+            } else {
+                headers += `<th class="p-3 text-center bg-indigo-900 text-indigo-100">FO<br>(${pond.finalOral}p)</th>`;
+            }
+
+            // Recuperatorio y Total
+            headers += `<th class="p-3 text-center bg-yellow-600 text-white">REC<br>(10p)</th>`;
+            headers += `<th class="p-3 text-center bg-brand-teal text-white">TOTAL</th>`;
+
+            // Generación de Filas por Estudiante
             let tbody = '';
             students.forEach((e, index) => {
                 const n = e.notas || {};
                 const eId = e.id;
-                
-                const makeInput = (field, val, isReadonly=false, extraClass="") => {
-                    return `<input ${isReadonly ? 'readonly' : `onchange="updateNote('${eId}', '${field}', this.value)"`} type="number" min="0" value="${val !== 0 ? val : ''}" class="gradebook-input w-12 h-10 text-center font-black rounded border focus:border-brand-teal outline-none transition-colors ${isReadonly ? 'bg-transparent text-brand-teal border-transparent cursor-default' : 'bg-white border-slate-300'} ${extraClass}">`;
+
+                const makeTaskInput = (taskId, val, maxTask) => {
+                    return `<input onchange="updateTaskGrade('${taskId}', '${eId}', this.value)" type="number" min="0" max="${maxTask}" value="${val !== undefined && val !== '' ? val : ''}" class="gradebook-input w-12 h-9 text-center font-black rounded border border-slate-300 focus:border-brand-teal outline-none bg-white text-xs">`;
                 };
 
-                const asi = Number(n.asi || 0);
-                const par = Number(n.par || 0);
-                const rec = Number(n.rec || 0);
-                
-                // Tareas
-                const tarApp = calcPromedioCategoria(eId, cId, 'tar') !== null ? Number(calcPromedioCategoria(eId, cId, 'tar')) : 0;
-                const tarExt = Number(n.tarExt || 0);
-                const tarTotal = Math.min(tarApp + tarExt, maxTar); // Límite según categoría
-
-                // Función auxiliar para obtener notas de exámenes (prioriza nota manual si existe, si no, usa la calculada por la app)
-                const getExamVal = (fieldKey) => {
-                    if (n[fieldKey] !== undefined && n[fieldKey] !== "") return Number(n[fieldKey]);
-                    const calc = calcPromedioCategoria(eId, cId, fieldKey);
-                    return calc !== null ? Number(calc) : 0;
+                const makeDirectInput = (fieldKey, val, maxVal, extraClass="") => {
+                    return `<input onchange="updateDirectGrade('${eId}', '${fieldKey}', this.value)" type="number" min="0" max="${maxVal}" value="${val !== undefined && val !== '' ? val : ''}" class="gradebook-input w-12 h-9 text-center font-black rounded border border-slate-300 focus:border-brand-teal outline-none bg-white text-xs ${extraClass}">`;
                 };
 
-                let examSum = 0;
-                let examCols = '';
+                // Asistencia y Participación Directas
+                const asiVal = n.asistencia !== undefined ? Number(n.asistencia) : 0;
+                const parVal = n.participacion !== undefined ? Number(n.participacion) : 0;
 
-                if(cat === 'ninos') {
-                    const fee = getExamVal('fee'); const feo = getExamVal('feo');
-                    const see = getExamVal('see'); const seo = getExamVal('seo');
-                    const fe = getExamVal('fe'); const fo = getExamVal('fo');
-                    examSum = fee + feo + see + seo + fe + fo;
-                    
-                    examCols += `<td class="p-1 text-center">${makeInput('fee', fee)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('feo', feo)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('see', see)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('seo', seo)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('fe', fe)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('fo', fo)}</td>`;
-                } else if(cat === 'adolescentes') {
-                    const me = getExamVal('me'); const mo = getExamVal('mo');
-                    const fe = getExamVal('fe'); const fo = getExamVal('fo');
-                    examSum = me + mo + fe + fo;
+                // TAREAS: Calcular suma y ponderación automática
+                let tarTaskCols = '';
+                let tarEarnedSum = 0;
+                let tarMaxSum = 0;
 
-                    examCols += `<td class="p-1 text-center">${makeInput('me', me)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('mo', mo)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('fe', fe)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('fo', fo)}</td>`;
-                } else if(cat === 'adultos') {
-                    const me = getExamVal('me'); const mo = getExamVal('mo');
-                    const fe = getExamVal('fe'); const fo = getExamVal('fo');
-                    examSum = me + mo + fe + fo;
-
-                    examCols += `<td class="p-1 text-center">${makeInput('me', me)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('mo', mo)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('fe', fe)}</td>`;
-                    examCols += `<td class="p-1 text-center">${makeInput('fo', fo)}</td>`;
+                if (tasksByCat.tareas.length > 0) {
+                    tasksByCat.tareas.forEach(t => {
+                        const taskMax = Number(t.maxPts || 100);
+                        const score = globalData.entregas?.[t.id]?.[eId]?.nota;
+                        tarMaxSum += taskMax;
+                        if(score !== undefined && score !== "") tarEarnedSum += Number(score);
+                        tarTaskCols += `<td class="p-1 text-center bg-teal-50/30">${makeTaskInput(t.id, score, taskMax)}</td>`;
+                    });
                 }
 
-                let sumBase = par + tarTotal + examSum;
-                if(cat === 'ninos' || cat === 'adolescentes') sumBase += asi;
-                
-                const total = sumBase < 55 && rec > 0 ? Math.min(sumBase + rec, 55) : sumBase;
+                let tarPonderado = 0;
+                if (tarMaxSum > 0) {
+                    tarPonderado = (tarEarnedSum / tarMaxSum) * pond.tareas;
+                    if (tarPonderado > pond.tareas) tarPonderado = pond.tareas;
+                } else {
+                    tarPonderado = n.tareas !== undefined ? Number(n.tareas) : 0;
+                }
+                tarPonderado = Math.round(tarPonderado * 10) / 10;
+
+                // Función aux para procesar evaluaciones
+                const processCategory = (catKey, catMax) => {
+                    const tasksList = tasksByCat[catKey];
+                    let cols = '';
+                    let earnedSum = 0;
+                    let maxSum = 0;
+
+                    if (tasksList.length > 0) {
+                        tasksList.forEach(t => {
+                            const taskMax = Number(t.maxPts || 100);
+                            const score = globalData.entregas?.[t.id]?.[eId]?.nota;
+                            maxSum += taskMax;
+                            if(score !== undefined && score !== "") earnedSum += Number(score);
+                            cols += `<td class="p-1 text-center bg-slate-50">${makeTaskInput(t.id, score, taskMax)}</td>`;
+                        });
+                        let pondVal = maxSum > 0 ? (earnedSum / maxSum) * catMax : 0;
+                        return { cols, score: Math.round(pondVal * 10) / 10 };
+                    } else {
+                        const directScore = n[catKey] !== undefined ? Number(n[catKey]) : 0;
+                        cols = `<td class="p-1 text-center bg-slate-50">${makeDirectInput(catKey, n[catKey], catMax)}</td>`;
+                        return { cols, score: directScore };
+                    }
+                };
+
+                const meRes = processCategory('midtermEscrito', pond.midtermEscrito);
+                const moRes = processCategory('midtermOral', pond.midtermOral);
+                const feRes = processCategory('finalEscrito', pond.finalEscrito);
+                const foRes = processCategory('finalOral', pond.finalOral);
+
+                const recVal = n.recuperatorio !== undefined ? Number(n.recuperatorio) : 0;
+
+                const baseSum = asiVal + parVal + tarPonderado + meRes.score + moRes.score + feRes.score + foRes.score;
+                let total = baseSum < 55 && recVal > 0 ? Math.min(baseSum + recVal, 55) : baseSum;
+                total = Math.min(100, Math.round(total * 10) / 10);
+
                 const statusClass = total >= 55 ? 'text-brand-teal' : 'text-red-500';
 
                 tbody += `<tr class="hover:bg-slate-100 transition-colors border-b border-slate-200">
                     <td class="p-2 text-center text-xs font-bold text-slate-400">${index + 1}</td>
                     <td class="p-2 font-black text-brand-navy text-xs md:text-sm uppercase truncate max-w-[150px] md:max-w-xs" title="${e.nombre}">${e.nombre}</td>
-                    ${cat === 'ninos' || cat === 'adolescentes' ? `<td class="p-1 text-center">${makeInput('asi', asi)}</td>` : ''}
-                    <td class="p-1 text-center">${makeInput('par', par)}</td>
-                    <td class="p-1 text-center bg-brand-teal/5">${makeInput('tarApp', tarApp, true)}</td>
-                    <td class="p-1 text-center bg-brand-teal/5">${makeInput('tarExt', tarExt, false, "border-brand-teal/50 bg-white")}</td>
-                    ${examCols}
-                    <td class="p-1 text-center bg-yellow-50">${makeInput('rec', rec, false, "border-yellow-300 text-yellow-600")}</td>
+                    
+                    <td class="p-1 text-center">${makeDirectInput('asistencia', n.asistencia, pond.asistencia)}</td>
+                    <td class="p-1 text-center">${makeDirectInput('participacion', n.participacion, pond.participacion)}</td>
+                    
+                    ${tarTaskCols}
+                    <td class="p-1 text-center bg-teal-100/50 font-black text-brand-teal text-sm">${tarPonderado}</td>
+                    
+                    ${meRes.cols}
+                    ${moRes.cols}
+                    ${feRes.cols}
+                    ${foRes.cols}
+                    
+                    <td class="p-1 text-center bg-yellow-50">${makeDirectInput('recuperatorio', n.recuperatorio, 10, "border-yellow-300 text-yellow-600")}</td>
                     <td class="p-2 text-center bg-slate-50 border-l-2 border-slate-200 font-black ${statusClass} text-base md:text-lg">${total}</td>
                 </tr>`;
             });
@@ -1156,16 +1432,6 @@
             </div>`;
         }
 
-        async function updateNote(eId, field, val) { 
-            // Si el docente borra la nota, la quitamos de la base de datos para que el sistema retome la nota automática
-            if(val === "" || val === null) {
-                await db.ref(`estudiantes/${eId}/notas/${field}`).remove();
-            } else {
-                await db.ref(`estudiantes/${eId}/notas/${field}`).set(Number(val)); 
-            }
-            renderGradesTable(document.getElementById('g-cur').value);
-        }
-
         function toggleGradeDetails() {
             const container = document.getElementById('grades-details-container');
             const icon = document.getElementById('icon-grades-toggle');
@@ -1180,79 +1446,92 @@
             }
         }
 
-        // --- VISUALIZACIÓN DE BOLETÍN PARA ESTUDIANTE (ACTUALIZADO) ---
+        // --- BOLETÍN DE ESTUDIANTE ACTUALIZADO ---
         function renderStudentGrades() {
             setActiveNav('s-nav-3');
             const main = document.getElementById('app-content');
             const e = globalData.estudiantes?.[currentUser.id] || currentUser;
             const n = e.notas || {};
-            const cat = globalData.cursos?.[e.cursoId]?.categoria || 'adolescentes';
-            const maxTar = cat === 'ninos' ? 25 : (cat === 'adolescentes' ? 20 : 15);
+            const pond = getGroupPonderaciones(e.cursoId);
 
-            const asi = Number(n.asi || 0), par = Number(n.par || 0), rec = Number(n.rec || 0);
-            
-            const tarApp = calcPromedioCategoria(currentUser.id, e.cursoId, 'tar') !== null ? Number(calcPromedioCategoria(currentUser.id, e.cursoId, 'tar')) : 0;
-            const tarExt = Number(n.tarExt || 0);
-            const tarTotal = Math.min(tarApp + tarExt, maxTar);
+            const asiVal = n.asistencia !== undefined ? Number(n.asistencia) : 0;
+            const parVal = n.participacion !== undefined ? Number(n.participacion) : 0;
+            const recVal = n.recuperatorio !== undefined ? Number(n.recuperatorio) : 0;
 
-            const getExamValStudent = (fieldKey) => {
-                if (n[fieldKey] !== undefined && n[fieldKey] !== "") return Number(n[fieldKey]);
-                const calc = calcPromedioCategoria(currentUser.id, e.cursoId, fieldKey);
-                return calc !== null ? Number(calc) : 0;
+            // Tareas del alumno
+            let tareasListHtml = '';
+            let tarEarnedSum = 0;
+            let tarMaxSum = 0;
+
+            for(let pId in globalData.publicaciones) {
+                const p = globalData.publicaciones[pId];
+                if((p.cursoId === e.cursoId || p.cursoId === 'all') && p.categoria === 'tareas') {
+                    const taskMax = Number(p.maxPts || 100);
+                    const score = globalData.entregas?.[pId]?.[currentUser.id]?.nota;
+                    tarMaxSum += taskMax;
+                    if(score !== undefined && score !== "") {
+                        tarEarnedSum += Number(score);
+                        tareasListHtml += `<div class="flex justify-between items-center text-xs text-slate-500 py-1 pl-4"><span class="truncate w-48">• ${p.titulo}</span><span class="font-bold">${score} / ${taskMax} pts</span></div>`;
+                    } else {
+                        tareasListHtml += `<div class="flex justify-between items-center text-xs text-slate-400 italic py-1 pl-4"><span class="truncate w-48">• ${p.titulo}</span><span>Pendiente</span></div>`;
+                    }
+                }
+            }
+
+            let tarPonderado = 0;
+            if(tarMaxSum > 0) {
+                tarPonderado = (tarEarnedSum / tarMaxSum) * pond.tareas;
+                if (tarPonderado > pond.tareas) tarPonderado = pond.tareas;
+            } else {
+                tarPonderado = n.tareas !== undefined ? Number(n.tareas) : 0;
+            }
+            tarPonderado = Math.round(tarPonderado * 10) / 10;
+
+            // Función para calcular categoría de exámenes o directas
+            const getCatScore = (catKey, catMax) => {
+                let earnedSum = 0, maxSum = 0, count = 0;
+                for(let pId in globalData.publicaciones) {
+                    const p = globalData.publicaciones[pId];
+                    if((p.cursoId === e.cursoId || p.cursoId === 'all') && p.categoria === catKey) {
+                        count++;
+                        const taskMax = Number(p.maxPts || 100);
+                        const score = globalData.entregas?.[pId]?.[currentUser.id]?.nota;
+                        maxSum += taskMax;
+                        if(score !== undefined && score !== "") earnedSum += Number(score);
+                    }
+                }
+                if (count > 0 && maxSum > 0) {
+                    let score = (earnedSum / maxSum) * catMax;
+                    return Math.round(score * 10) / 10;
+                } else {
+                    return n[catKey] !== undefined ? Number(n[catKey]) : 0;
+                }
             };
 
-            let sum = 0, final = 0;
-            let detailsHtml = '';
+            const meVal = getCatScore('midtermEscrito', pond.midtermEscrito);
+            const moVal = getCatScore('midtermOral', pond.midtermOral);
+            const feVal = getCatScore('finalEscrito', pond.finalEscrito);
+            const foVal = getCatScore('finalOral', pond.finalOral);
 
-            if(cat === 'ninos') {
-                const fee = getExamValStudent('fee'); const feo = getExamValStudent('feo');
-                const see = getExamValStudent('see'); const seo = getExamValStudent('seo');
-                const fe = getExamValStudent('fe'); const fo = getExamValStudent('fo');
-                sum = asi + par + tarTotal + fee + feo + see + seo + fe + fo;
+            const baseSum = asiVal + parVal + tarPonderado + meVal + moVal + feVal + foVal;
+            let final = baseSum < 55 && recVal > 0 ? Math.min(baseSum + recVal, 55) : baseSum;
+            final = Math.min(100, Math.round(final * 10) / 10);
+
+            let detailsHtml = `
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">ASISTENCIA (${pond.asistencia} PTS)</span><span class="font-black text-base md:text-lg">${asiVal}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">PARTICIPACIÓN (${pond.participacion} PTS)</span><span class="font-black text-base md:text-lg">${parVal}</span></div>
                 
-                detailsHtml = `
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">ASISTENCIA (5 PTS)</span><span class="font-black text-base md:text-lg">${asi}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">PARTICIPACIÓN (10 PTS)</span><span class="font-black text-base md:text-lg">${par}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">TAREAS (APP: ${tarApp} + EXT: ${tarExt})</span><span class="font-black text-brand-teal text-base md:text-lg">${tarTotal} / 25</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FIRST EXAM ESCRITO (5)</span><span class="font-black text-brand-teal text-base md:text-lg">${fee}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FIRST EXAM ORAL (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${feo}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">SECOND EXAM ESCRITO (5)</span><span class="font-black text-brand-teal text-base md:text-lg">${see}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">SECOND EXAM ORAL (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${seo}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ESCRITO (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${fe}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ORAL (20)</span><span class="font-black text-brand-teal text-base md:text-lg">${fo}</span></div>
-                `;
-            } else if(cat === 'adolescentes') {
-                const me = getExamValStudent('me'); const mo = getExamValStudent('mo');
-                const fe = getExamValStudent('fe'); const fo = getExamValStudent('fo');
-                sum = asi + par + tarTotal + me + mo + fe + fo;
-                
-                detailsHtml = `
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">ASISTENCIA (5 PTS)</span><span class="font-black text-base md:text-lg">${asi}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">PARTICIPACIÓN (10 PTS)</span><span class="font-black text-base md:text-lg">${par}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">TAREAS (APP: ${tarApp} + EXT: ${tarExt})</span><span class="font-black text-brand-teal text-base md:text-lg">${tarTotal} / 20</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">MIDTERM ESCRITO (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${me}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">MIDTERM ORAL (20)</span><span class="font-black text-brand-teal text-base md:text-lg">${mo}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ESCRITO (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${fe}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ORAL (25)</span><span class="font-black text-brand-teal text-base md:text-lg">${fo}</span></div>
-                `;
-            } else if(cat === 'adultos') {
-                const me = getExamValStudent('me'); const mo = getExamValStudent('mo');
-                const fe = getExamValStudent('fe'); const fo = getExamValStudent('fo');
-                sum = par + tarTotal + me + mo + fe + fo;
-                
-                detailsHtml = `
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-slate-500">PARTICIPACIÓN (10 PTS)</span><span class="font-black text-base md:text-lg">${par}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">TAREAS (APP: ${tarApp} + EXT: ${tarExt})</span><span class="font-black text-brand-teal text-base md:text-lg">${tarTotal} / 15</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">MIDTERM ESCRITO (10)</span><span class="font-black text-brand-teal text-base md:text-lg">${me}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">MIDTERM ORAL (20)</span><span class="font-black text-brand-teal text-base md:text-lg">${mo}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ESCRITO (15)</span><span class="font-black text-brand-teal text-base md:text-lg">${fe}</span></div>
-                    <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-teal">FINAL ORAL (30)</span><span class="font-black text-brand-teal text-base md:text-lg">${fo}</span></div>
-                `;
-            }
-            
-            final = sum < 55 && rec > 0 ? Math.min(sum + rec, 55) : sum;
-            
-            detailsHtml += `<div class="flex justify-between pt-2 items-center"><span class="text-xs font-black uppercase text-yellow-500">RECUPERATORIO (10 PTS)<br><span class="text-[10px] text-slate-400 block mt-1">(Puntaje mínimo 55)</span></span><span class="font-black text-yellow-500 text-base md:text-lg">${rec}</span></div>`;
+                <div class="border-b border-slate-100 pb-3">
+                    <div class="flex justify-between items-center mb-1"><span class="text-xs font-black uppercase text-brand-teal">TAREAS Y PRÁCTICAS (${pond.tareas} PTS)</span><span class="font-black text-brand-teal text-base md:text-lg">${tarPonderado} / ${pond.tareas}</span></div>
+                    ${tareasListHtml ? `<div class="bg-slate-50 p-2 rounded-xl border border-slate-100 space-y-1 mt-2">${tareasListHtml}</div>` : ''}
+                </div>
+
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-navy">MIDTERM ESCRITO (${pond.midtermEscrito} PTS)</span><span class="font-black text-base md:text-lg">${meVal}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-navy">MIDTERM ORAL (${pond.midtermOral} PTS)</span><span class="font-black text-base md:text-lg">${moVal}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-navy">FINAL ESCRITO (${pond.finalEscrito} PTS)</span><span class="font-black text-base md:text-lg">${feVal}</span></div>
+                <div class="flex justify-between border-b border-slate-100 pb-3"><span class="text-xs font-black uppercase text-brand-navy">FINAL ORAL (${pond.finalOral} PTS)</span><span class="font-black text-base md:text-lg">${foVal}</span></div>
+                <div class="flex justify-between pt-2 items-center"><span class="text-xs font-black uppercase text-yellow-500">RECUPERATORIO (10 PTS)<br><span class="text-[10px] text-slate-400 block mt-1">(Para aprobar con 55 pts)</span></span><span class="font-black text-yellow-500 text-base md:text-lg">${recVal}</span></div>
+            `;
 
             main.innerHTML = `<div class="max-w-2xl mx-auto w-full">
                 <div class="text-center mt-2">
@@ -1302,7 +1581,6 @@
             main.innerHTML = html + `</div></div>`;
         }
 
-        // --- CARGA MASIVA INTELIGENTE MEJORADA ---
         function modalCargaMasiva() {
             let ops = '<option value="">-- SELECCIONA UN GRUPO --</option>';
             for(let key in globalData.cursos) ops += `<option value="${key}">${globalData.cursos[key].nombre}</option>`;
@@ -1460,97 +1738,43 @@
                         </div>
                         <button onclick="saveStudentPin()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl mt-4">Actualizar PIN</button>
                     </div>
-                </div>
-            `, false);
+                </div>`, false);
         }
 
         async function saveStudentPin() {
             const newPin = document.getElementById('new-student-pin').value.trim().toUpperCase();
-            if(!newPin) return alert("El PIN no puede estar vacío.");
-            
-            const adminCode = globalData.configuracion?.adminCode || "PROFE2026";
-            if(newPin === adminCode) return alert("Este PIN no está permitido.");
-            
-            for(let key in globalData.estudiantes) {
-                if(key !== currentUser.id && globalData.estudiantes[key].codigo === newPin) {
-                    return alert("Este PIN ya está en uso por otra persona. Intenta agregarle un número extra.");
-                }
-            }
-
-            try {
-                await db.ref(`estudiantes/${currentUser.id}/codigo`).set(newPin);
-                currentUser.codigo = newPin;
-                alert("¡Tu PIN ha sido actualizado exitosamente!");
-                closeModal();
-            } catch (error) {
-                alert("Hubo un error al guardar: " + error.message);
-            }
+            if(!newPin) return alert("Ingresa un PIN válido.");
+            await db.ref(`estudiantes/${currentUser.id}`).update({ codigo: newPin });
+            currentUser.codigo = newPin;
+            alert("¡PIN actualizado con éxito!");
+            closeModal();
         }
 
-        function openModal(html, isFullScreen = false) { 
-            const content = document.getElementById('modal-content');
+        function openModal(html, fullScreen = false) {
+            const overlay = document.getElementById('modal-overlay');
             const box = document.getElementById('modal-box');
-            
-            content.innerHTML = html; 
-            
-            if(isFullScreen) {
-                box.className = 'bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-[98vw] md:max-w-6xl h-[95vh] md:h-[95vh] rounded-2xl md:rounded-[2rem] overflow-hidden';
-                content.className = 'flex-1 flex flex-col h-full w-full';
+            const content = document.getElementById('modal-content');
+
+            if (fullScreen) {
+                box.className = "bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-full h-full rounded-none overflow-hidden";
             } else {
-                box.className = 'bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-full max-w-sm md:max-w-xl rounded-[2rem] h-auto';
-                content.className = 'overflow-y-auto hide-scroll w-full max-h-[85vh]';
+                box.className = "bg-white relative shadow-2xl flex flex-col transition-all duration-300 w-[95vw] md:max-w-4xl max-h-[90vh] rounded-2xl md:rounded-[2rem] overflow-hidden";
             }
-            
-            document.getElementById('modal-overlay').classList.remove('hidden'); 
+
+            content.innerHTML = html;
+            overlay.classList.remove('hidden');
             history.pushState({ modalOpen: true }, "");
         }
 
-        function closeModal() { 
-            const overlay = document.getElementById('modal-overlay');
-            if (overlay && !overlay.classList.contains('hidden')) {
-                overlay.classList.add('hidden');
-                if (history.state && history.state.modalOpen) {
-                    history.back();
-                }
-            }
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.add('hidden');
         }
 
-        async function eliminarRegistro(path) { if(confirm("¿Estás seguro de eliminar este registro?")) await db.ref(path).remove(); }
-    </script>
-<script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js')
-                .then(registration => {
-                    console.log('Service Worker registrado con éxito:', registration.scope);
-                })
-                .catch(error => {
-                    console.log('Error al registrar el Service Worker:', error);
-                });
-        });
-    }
-</script>
-<script>
-    let deferredPrompt;
-    const installBanner = document.getElementById('install-banner');
-    const installButton = document.getElementById('install-button');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        installBanner.style.display = 'block';
-    });
-
-    installButton.addEventListener('click', (e) => {
-        installBanner.style.display = 'none';
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-                console.log('El usuario aceptó la instalación');
+        async function eliminarRegistro(path) {
+            if(confirm("¿Estás seguro de que deseas eliminar este registro?")) {
+                await db.ref(path).remove();
             }
-            deferredPrompt = null;
-        });
-    });
-</script>
+        }
+    </script>
 </body>
 </html>
