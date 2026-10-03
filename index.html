@@ -105,7 +105,12 @@
                             <p id="display-role" class="text-xs md:text-sm text-brand-teal font-bold uppercase tracking-widest mt-1 italic">Cargando...</p>
                         </div>
                     </div>
-                    <button onclick="location.reload()" class="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors"><i class="fa-solid fa-power-off text-brand-yellow text-xl"></i></button>
+                    <div class="flex items-center gap-2">
+                        <!-- Nuevo botón de ajustes (oculto por defecto) -->
+                        <button id="btn-student-settings" onclick="modalStudentSettings()" class="hidden w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors shadow-sm"><i class="fa-solid fa-gear text-white text-xl"></i></button>
+                        
+                        <button onclick="location.reload()" class="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors shadow-sm"><i class="fa-solid fa-power-off text-brand-yellow text-xl"></i></button>
+                    </div>
                 </div>
             </header>
 
@@ -222,10 +227,12 @@
             if(currentUser.rol === 'teacher') {
                 document.getElementById('display-role').innerText = "Administrator";
                 document.getElementById('nav-teacher').classList.remove('hidden');
+                document.getElementById('btn-student-settings').classList.add('hidden');
                 renderTeacherDashboard();
             } else {
                 document.getElementById('display-role').innerText = globalData.cursos?.[currentUser.cursoId]?.nombre || "Student";
                 document.getElementById('nav-student').classList.remove('hidden');
+                document.getElementById('btn-student-settings').classList.remove('hidden'); // Muestra el engranaje
                 renderStudentDashboard();
             }
         }
@@ -1394,6 +1401,48 @@
                 whatsapp: document.getElementById('set-wa').value
             });
             alert("Configuración Actualizada");
+        }
+
+        function modalStudentSettings() {
+            openModal(`
+                <div class="p-6 md:p-8">
+                    <h3 class="font-black text-brand-navy text-xl md:text-2xl uppercase mb-4 italic"><i class="fa-solid fa-gear text-brand-teal mr-2"></i> Mi Cuenta</h3>
+                    <div class="space-y-4">
+                        <p class="text-sm text-slate-500 font-bold mb-2">Ingresa tu nuevo PIN o identificador para ingresar al campus. ¡Anótalo para no olvidarlo!</p>
+                        <div>
+                            <label class="text-[11px] md:text-xs font-black text-slate-400 uppercase ml-2 block mb-2">Nuevo Identificador / PIN:</label>
+                            <input id="new-student-pin" type="text" placeholder="EJ: MARIA2026" value="${currentUser.codigo}" class="w-full p-4 bg-slate-50 rounded-2xl font-black uppercase outline-none focus:border-brand-teal focus:bg-white transition-colors border border-slate-200 text-sm">
+                        </div>
+                        <button onclick="saveStudentPin()" class="w-full bg-brand-teal hover:bg-teal-400 transition-colors text-white py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl mt-4">Actualizar PIN</button>
+                    </div>
+                </div>
+            `, false);
+        }
+
+        async function saveStudentPin() {
+            const newPin = document.getElementById('new-student-pin').value.trim().toUpperCase();
+            if(!newPin) return alert("El PIN no puede estar vacío.");
+            
+            // Verifica que el estudiante no trate de ponerse el PIN del Administrador
+            const adminCode = globalData.configuracion?.adminCode || "PROFE2026";
+            if(newPin === adminCode) return alert("Este PIN no está permitido.");
+            
+            // Verifica que el PIN no pertenezca ya a otro estudiante registrado
+            for(let key in globalData.estudiantes) {
+                if(key !== currentUser.id && globalData.estudiantes[key].codigo === newPin) {
+                    return alert("Este PIN ya está en uso por otra persona. Intenta agregarle un número extra.");
+                }
+            }
+
+            try {
+                // Guarda el nuevo código en Firebase en la ruta exacta de este alumno
+                await db.ref(`estudiantes/${currentUser.id}/codigo`).set(newPin);
+                currentUser.codigo = newPin; // Actualiza la memoria temporal de la app
+                alert("¡Tu PIN ha sido actualizado exitosamente!");
+                closeModal();
+            } catch (error) {
+                alert("Hubo un error al guardar: " + error.message);
+            }
         }
 
         function openModal(html, isFullScreen = false) { 
